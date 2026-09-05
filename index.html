@@ -1,0 +1,5683 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<title>JEJU HEAT GUARD — 온열환경 위험 모니터링 및 대응 지원 시스템</title>
+
+<link
+  rel="stylesheet"
+  as="style"
+  crossorigin
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css"
+/>
+
+<style>
+  :root {
+    --bg: #FFFFFF;
+    --bg-alt: #F7F8FA;
+    --text-primary: #111827;
+    --text-secondary: #4B5563;
+    --text-tertiary: #9CA3AF;
+    --border: #E5E7EB;
+
+    --risk-safe: #2E7D32;
+    --risk-caution: #F9A825;
+    --risk-warning: #EF6C00;
+    --risk-severe: #D32F2F;
+    --risk-danger: #8E0000;
+
+    --content-max: 1400px;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family:
+      'Pretendard',
+      -apple-system,
+      BlinkMacSystemFont,
+      'Malgun Gothic',
+      sans-serif;
+
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    min-height: 100vh;
+  }
+
+  button,
+  input,
+  select {
+    font-family: inherit;
+  }
+
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .icon {
+    width: 14px;
+    height: 14px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    vertical-align: -2px;
+  }
+
+  /* ============================================================
+     HEADER
+  ============================================================ */
+
+  .app-header-group {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--bg);
+  }
+
+  header.site-header {
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+
+  .header-inner {
+    max-width: var(--content-max);
+    margin: 0 auto;
+    padding: 12px 20px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 8px;
+  }
+
+  .logo-group {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+
+    min-width: 0;
+  }
+
+  .logo {
+    font-size: 16px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .logo-sub {
+    font-size: 12px;
+    color: var(--text-tertiary);
+
+    white-space: nowrap;
+  }
+
+  .status-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    font-size: 12px;
+    color: var(--text-secondary);
+
+    white-space: nowrap;
+  }
+
+  .data-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+
+    font-weight: 700;
+    font-size: 11px;
+
+    border: 1px solid var(--border);
+    border-radius: 4px;
+
+    padding: 3px 8px;
+
+    color: var(--text-secondary);
+  }
+
+  .data-state.live {
+    color: var(--risk-safe);
+    border-color: var(--risk-safe);
+  }
+
+  .data-state.error {
+    color: var(--risk-danger);
+    border-color: var(--risk-danger);
+  }
+
+  .data-state .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: currentColor;
+  }
+
+  /* ============================================================
+     TAB NAV
+  ============================================================ */
+
+  nav.tab-nav {
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+
+    overflow-x: auto;
+
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  nav.tab-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-nav-inner {
+    max-width: var(--content-max);
+    margin: 0 auto;
+
+    padding: 0 20px;
+
+    display: flex;
+    align-items: stretch;
+
+    min-width: max-content;
+  }
+
+  .tab-btn {
+    position: relative;
+
+    border: none;
+    background: none;
+
+    color: var(--text-secondary);
+
+    padding: 11px 18px 10px;
+
+    font-size: 12px;
+    font-weight: 500;
+
+    cursor: pointer;
+  }
+
+  .tab-btn:first-child {
+    padding-left: 0;
+  }
+
+  .tab-btn.active {
+    color: var(--text-primary);
+    font-weight: 700;
+  }
+
+  .tab-btn.active::after {
+    content: "";
+
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+
+    height: 2px;
+
+    background: var(--text-primary);
+  }
+
+  .tab-btn:first-child.active::after {
+    left: 0;
+  }
+
+  .tab-divider {
+    width: 1px;
+    height: 16px;
+
+    background: var(--border);
+
+    align-self: center;
+
+    margin: 0 4px;
+  }
+
+  .tab-btn.aux {
+    color: var(--text-tertiary);
+  }
+
+  .tab-btn.aux.active {
+    color: var(--text-secondary);
+  }
+
+  /* ============================================================
+     MAIN
+  ============================================================ */
+
+  main {
+    width: 100%;
+  }
+
+  .wrap {
+    max-width: var(--content-max);
+    margin: 0 auto;
+
+    padding: 28px 20px 50px;
+  }
+
+  .tab-panel {
+    display: none;
+  }
+
+  .tab-panel.active {
+    display: block;
+  }
+
+  /* ============================================================
+     TITLE
+  ============================================================ */
+
+  .panel-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    gap: 20px;
+
+    padding-bottom: 18px;
+
+    border-bottom: 1px solid var(--border);
+
+    margin-bottom: 20px;
+  }
+
+  .panel-title-row h2 {
+    margin: 0 0 7px;
+
+    font-size: 20px;
+    line-height: 1.35;
+
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .panel-title-row p {
+    margin: 0;
+
+    max-width: 760px;
+
+    font-size: 12px;
+    line-height: 1.7;
+
+    color: var(--text-secondary);
+  }
+
+  .demo-tag {
+    flex: 0 0 auto;
+
+    display: inline-flex;
+    align-items: center;
+
+    border: 1px solid var(--border);
+    border-radius: 4px;
+
+    padding: 3px 8px;
+
+    color: var(--text-tertiary);
+
+    font-size: 11px;
+
+    white-space: nowrap;
+  }
+
+  /* ============================================================
+     COMMON TABLE
+  ============================================================ */
+
+  .table-wrap {
+    overflow-x: auto;
+
+    border: 1px solid var(--border);
+    border-radius: 6px;
+
+    background: var(--bg);
+  }
+
+  .table-wrap table {
+    width: 100%;
+    min-width: 620px;
+
+    border-collapse: collapse;
+  }
+
+  .table-wrap thead tr {
+    background: var(--bg-alt);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .table-wrap th {
+    text-align: left;
+
+    font-size: 12px;
+    font-weight: 700;
+
+    color: var(--text-secondary);
+
+    padding: 10px 14px;
+  }
+
+  .table-wrap tbody tr {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .table-wrap tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  .table-wrap td {
+    padding: 12px 14px;
+
+    font-size: 13px;
+  }
+
+  .table-wrap td.strong {
+    font-weight: 700;
+  }
+
+  .table-wrap td.muted {
+    color: var(--text-secondary);
+  }
+
+  .source-line {
+    margin-top: 8px;
+
+    font-size: 11px;
+    line-height: 1.6;
+
+    color: var(--text-tertiary);
+  }
+
+  .sub-heading {
+    margin: 26px 0 10px;
+
+    font-size: 14px;
+    font-weight: 800;
+
+    letter-spacing: -0.01em;
+  }
+
+  /* ============================================================
+     RISK LABEL
+  ============================================================ */
+
+  .risk-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    font-size: 12px;
+    font-weight: 700;
+
+    white-space: nowrap;
+  }
+
+  .risk-dot {
+    display: inline-block;
+
+    border-radius: 999px;
+
+    flex: 0 0 auto;
+  }
+
+  .risk-label.unknown {
+    color: var(--text-tertiary) !important;
+  }
+
+  .unknown-dot {
+    background: var(--text-tertiary);
+  }
+
+  /* ============================================================
+     TAB 1 — 상황판
+  ============================================================ */
+
+  .status-panel {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+
+    overflow: hidden;
+
+    background: var(--bg);
+  }
+
+  .status-time-row {
+    min-height: 38px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 20px;
+
+    padding: 9px 18px;
+
+    background: var(--bg-alt);
+
+    border-bottom: 1px solid var(--border);
+
+    font-size: 12px;
+  }
+
+  .status-main-row {
+    display: flex;
+  }
+
+  .status-main-cell {
+    flex: 1 1 50%;
+
+    padding: 24px 20px;
+  }
+
+  .status-main-cell.bordered {
+    border-right: 1px solid var(--border);
+  }
+
+  .status-main-cell .cap,
+  .status-sub-cell .cap {
+    margin-bottom: 5px;
+
+    font-size: 12px;
+
+    color: var(--text-secondary);
+  }
+
+  .hero-pair {
+    display: flex;
+    align-items: flex-end;
+
+    gap: 24px;
+  }
+
+  .wbgt-big {
+    font-size: 42px;
+    line-height: 1;
+
+    font-weight: 800;
+
+    letter-spacing: -0.04em;
+  }
+
+  .wbgt-unit {
+    margin-left: 4px;
+
+    font-size: 13px;
+    font-weight: 500;
+
+    color: var(--text-secondary);
+  }
+
+  .hero-label {
+    margin-top: 5px;
+
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .status-sub-row {
+    display: flex;
+
+    border-top: 1px solid var(--border);
+  }
+
+  .status-sub-cell {
+    flex: 1 1 33%;
+
+    padding: 14px 20px;
+  }
+
+  .status-sub-cell.bordered {
+    border-right: 1px solid var(--border);
+  }
+
+  .status-sub-cell .val {
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .status-note {
+    margin: 9px 0 24px;
+
+    font-size: 11px;
+    line-height: 1.6;
+
+    color: var(--text-tertiary);
+  }
+
+  /* ============================================================
+     TAB 2 — 위험지도
+  ============================================================ */
+
+  .map-layout {
+    display: flex;
+
+    border: 1px solid var(--border);
+    border-radius: 6px;
+
+    overflow: hidden;
+
+    background: var(--bg);
+  }
+
+  .map-area {
+    position: relative;
+
+    flex: 2 1 500px;
+
+    min-height: 480px;
+
+    background: #F1F3F5;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .map-placeholder-text {
+    text-align: center;
+
+    color: var(--text-tertiary);
+
+    font-size: 13px;
+
+    padding: 24px;
+
+    line-height: 1.6;
+  }
+
+  .map-legend {
+    position: absolute;
+
+    top: 14px;
+    left: 14px;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 4px;
+
+    background: var(--bg);
+
+    border: 1px solid var(--border);
+    border-radius: 4px;
+
+    padding: 8px 10px;
+  }
+
+  .map-legend .row {
+    display: flex;
+    align-items: center;
+
+    gap: 6px;
+
+    font-size: 11px;
+
+    color: var(--text-secondary);
+  }
+
+  .map-legend .dot {
+    width: 7px;
+    height: 7px;
+
+    border-radius: 999px;
+  }
+
+  .station-selectors {
+    position: absolute;
+
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+
+    display: flex;
+    gap: 8px;
+
+    flex-wrap: wrap;
+  }
+
+  .station-btn {
+    cursor: pointer;
+
+    display: flex;
+    align-items: center;
+
+    gap: 6px;
+
+    font-size: 12px;
+    font-weight: 500;
+
+    color: var(--text-primary);
+
+    background: var(--bg);
+
+    border: 1px solid var(--border);
+    border-radius: 4px;
+
+    padding: 6px 10px;
+  }
+
+  .station-btn.active {
+    font-weight: 700;
+
+    border-color: var(--text-primary);
+  }
+
+  .station-btn .dot {
+    width: 7px;
+    height: 7px;
+
+    border-radius: 999px;
+  }
+
+  .map-detail-panel {
+    flex: 1 1 320px;
+
+    border-left: 1px solid var(--border);
+
+    padding: 20px;
+  }
+
+  .map-detail-panel .place {
+    display: flex;
+    align-items: center;
+
+    gap: 6px;
+
+    margin-bottom: 4px;
+
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .map-detail-panel .risk-row {
+    margin-bottom: 14px;
+  }
+
+  .why-box {
+    background: var(--bg-alt);
+
+    border: 1px solid var(--border);
+    border-radius: 4px;
+
+    padding: 10px 12px;
+
+    font-size: 12px;
+    line-height: 1.6;
+
+    color: var(--text-secondary);
+
+    margin-bottom: 16px;
+  }
+
+  .detail-table {
+    width: 100%;
+
+    border-collapse: collapse;
+  }
+
+  .detail-table tr {
+    border-top: 1px solid var(--border);
+  }
+
+  .detail-table tr:first-child {
+    border-top: none;
+  }
+
+  .detail-table td {
+    padding: 9px 0;
+
+    font-size: 13px;
+  }
+
+  .detail-table td.label {
+    color: var(--text-secondary);
+
+    display: flex;
+    align-items: center;
+
+    gap: 6px;
+  }
+
+  .detail-table td.value {
+    font-weight: 700;
+    text-align: right;
+  }
+
+  .detail-table td.value.big {
+    font-size: 17px;
+  }
+
+  /* ============================================================
+     TAB 3 — 대응현황
+  ============================================================ */
+
+  .risk-count-row {
+    display: flex;
+
+    border: 1px solid var(--border);
+    border-radius: 6px;
+
+    margin-bottom: 28px;
+
+    overflow: hidden;
+  }
+
+  .risk-count-cell {
+    flex: 1 1 33%;
+
+    padding: 16px 20px;
+
+    border-right: 1px solid var(--border);
+  }
+
+  .risk-count-cell:last-child {
+    border-right: none;
+  }
+
+  .risk-count-cell .cap {
+    margin-bottom: 4px;
+
+    font-size: 12px;
+
+    color: var(--text-secondary);
+  }
+
+  .risk-count-cell .val {
+    font-size: 22px;
+    font-weight: 800;
+  }
+
+  .priority-list {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+
+    margin-bottom: 28px;
+
+    overflow: hidden;
+  }
+
+  .priority-list .row {
+    display: flex;
+    align-items: center;
+
+    gap: 14px;
+
+    padding: 12px 18px;
+
+    border-top: 1px solid var(--border);
+
+    font-size: 13px;
+  }
+
+  .priority-list .row:first-child {
+    border-top: none;
+  }
+
+  .priority-list .rank {
+    font-size: 12px;
+    color: var(--text-tertiary);
+
+    width: 18px;
+  }
+
+  .priority-list .name {
+    font-weight: 700;
+
+    width: 90px;
+  }
+
+  .priority-list .wbgt {
+    color: var(--text-secondary);
+
+    width: 190px;
+  }
+
+  .location-prompt {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    flex-wrap: wrap;
+
+    gap: 12px;
+
+    border: 1px solid var(--border);
+    border-radius: 6px;
+
+    padding: 12px 16px;
+
+    margin-bottom: 16px;
+
+    background: var(--bg-alt);
+  }
+
+  .location-prompt .msg {
+    display: flex;
+    align-items: center;
+
+    gap: 8px;
+
+    font-size: 13px;
+
+    color: var(--text-secondary);
+  }
+
+  .btn-primary {
+    background: var(--text-primary);
+    color: #FFFFFF;
+
+    border: none;
+    border-radius: 4px;
+
+    padding: 7px 14px;
+
+    font-size: 12px;
+    font-weight: 600;
+
+    cursor: pointer;
+  }
+
+  .shelter-layout {
+    display: flex;
+
+    border: 1px solid var(--border);
+    border-radius: 6px;
+
+    overflow: hidden;
+
+    background: var(--bg);
+
+    margin-bottom: 32px;
+  }
+
+  .shelter-map {
+    flex: 1.3 1 340px;
+
+    min-height: 300px;
+
+    background: #F1F3F5;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    color: var(--text-tertiary);
+
+    font-size: 13px;
+
+    padding: 24px;
+
+    text-align: center;
+  }
+
+  .shelter-list {
+    flex: 1 1 300px;
+
+    border-left: 1px solid var(--border);
+  }
+
+  .shelter-list .item {
+    padding: 14px 18px;
+
+    border-top: 1px solid var(--border);
+  }
+
+  .shelter-list .item:first-child {
+    border-top: none;
+  }
+
+  .shelter-list .name {
+    font-size: 13px;
+    font-weight: 700;
+
+    margin-bottom: 3px;
+  }
+
+  .shelter-list .addr {
+    font-size: 12px;
+
+    color: var(--text-secondary);
+
+    margin-bottom: 2px;
+  }
+
+  .shelter-list .meta {
+    font-size: 12px;
+
+    color: var(--text-secondary);
+
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .shelter-list .dist {
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .patient-box {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+
+    padding: 16px 18px;
+
+    margin-bottom: 16px;
+
+    background: var(--bg-alt);
+  }
+
+  .patient-box .step-label {
+    font-size: 12px;
+
+    color: var(--text-secondary);
+
+    margin-bottom: 10px;
+  }
+
+  .patient-select-btn {
+    width: 100%;
+
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+
+    background: var(--bg);
+
+    padding: 18px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 8px;
+
+    cursor: pointer;
+
+    color: var(--text-tertiary);
+
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .patient-select-btn.selected {
+    color: var(--text-primary);
+  }
+
+  #hospital-result {
+    display: none;
+  }
+
+  #hospital-result.show {
+    display: block;
+  }
+
+  /* ============================================================
+     TAB 4 — 상세 데이터
+  ============================================================ */
+
+  .analysis-region-tabs {
+    display: flex;
+    align-items: center;
+
+    gap: 8px;
+
+    margin-bottom: 12px;
+
+    flex-wrap: wrap;
+  }
+
+  .analysis-region-btn {
+    border: 1px solid var(--border);
+    background: var(--bg);
+
+    color: var(--text-secondary);
+
+    border-radius: 4px;
+
+    padding: 7px 12px;
+
+    font-size: 12px;
+    font-weight: 500;
+
+    cursor: pointer;
+  }
+
+  .analysis-region-btn.active {
+    border-color: var(--text-primary);
+
+    color: var(--text-primary);
+
+    font-weight: 700;
+  }
+
+  .analysis-region-name {
+    font-size: 12px;
+
+    color: var(--text-secondary);
+
+    margin-left: 2px;
+  }
+
+  .ts-layout {
+    display: flex;
+
+    border: 1px solid var(--border);
+    border-radius: 6px;
+
+    background: var(--bg);
+
+    overflow: hidden;
+
+    margin-bottom: 32px;
+  }
+
+  .ts-chart {
+    flex: 1 1 700px;
+
+    min-width: 0;
+
+    padding: 20px 20px 8px;
+  }
+
+  .ts-chart svg {
+    display: block;
+
+    width: 100%;
+    height: auto;
+
+    aspect-ratio: 560 / 240;
+
+    overflow: visible;
+  }
+
+  .ts-summary {
+    flex: 0 1 260px;
+
+    border-left: 1px solid var(--border);
+
+    min-width: 220px;
+  }
+
+  .ts-summary .row {
+    padding: 16px 18px;
+
+    border-top: 1px solid var(--border);
+  }
+
+  .ts-summary .row:first-child {
+    border-top: none;
+  }
+
+  .ts-summary .cap {
+    font-size: 12px;
+
+    color: var(--text-secondary);
+
+    margin-bottom: 4px;
+  }
+
+  .ts-summary .val {
+    font-size: 16px;
+
+    font-weight: 700;
+  }
+
+  .chart-empty {
+    min-height: 240px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    text-align: center;
+
+    color: var(--text-tertiary);
+
+    font-size: 13px;
+
+    line-height: 1.7;
+  }
+
+  .chart-note {
+    font-size: 11px;
+
+    color: var(--text-tertiary);
+
+    margin-top: 4px;
+  }
+
+  /* ============================================================
+     RESEARCH
+  ============================================================ */
+
+  .research-block {
+    margin-bottom: 28px;
+  }
+
+  .research-block h3 {
+    font-size: 14px;
+    font-weight: 700;
+
+    margin: 0 0 10px;
+  }
+
+  .research-block p {
+    font-size: 13px;
+
+    color: var(--text-secondary);
+
+    line-height: 1.8;
+
+    margin: 0 0 10px;
+  }
+
+  .formula-code {
+    font-family: monospace;
+
+    font-size: 13px;
+    font-weight: 700;
+
+    color: var(--text-primary);
+
+    background: var(--bg-alt);
+
+    border: 1px solid var(--border);
+    border-radius: 4px;
+
+    padding: 12px 14px;
+
+    margin: 10px 0;
+
+    white-space: pre-line;
+
+    line-height: 1.7;
+  }
+
+  .source-list {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+
+    background: var(--bg);
+
+    overflow: hidden;
+  }
+
+  .source-list .row {
+    display: flex;
+    align-items: center;
+
+    gap: 14px;
+
+    padding: 11px 18px;
+
+    border-top: 1px solid var(--border);
+
+    font-size: 13px;
+  }
+
+  .source-list .row:first-child {
+    border-top: none;
+  }
+
+  /* ============================================================
+     FOOTER
+  ============================================================ */
+
+  footer {
+    border-top: 1px solid var(--border);
+
+    padding: 28px 20px;
+  }
+
+  footer .wrap {
+    padding: 0;
+  }
+
+  footer .foot-title {
+    font-size: 13px;
+
+    font-weight: 700;
+
+    margin-bottom: 6px;
+  }
+
+  footer .foot-desc {
+    font-size: 12px;
+
+    color: var(--text-tertiary);
+
+    line-height: 1.7;
+  }
+
+  /* ============================================================
+     RESPONSIVE
+  ============================================================ */
+
+  @media (max-width: 860px) {
+    .map-layout {
+      flex-direction: column;
+    }
+
+    .map-detail-panel {
+      border-left: none;
+      border-top: 1px solid var(--border);
+    }
+
+    .map-area {
+      min-height: 360px;
+    }
+
+    .ts-layout {
+      flex-direction: column;
+    }
+
+    .ts-summary {
+      border-left: none;
+      border-top: 1px solid var(--border);
+
+      display: flex;
+      flex-wrap: wrap;
+    }
+
+    .ts-summary .row {
+      flex: 1 1 25%;
+
+      border-top: none;
+      border-right: 1px solid var(--border);
+    }
+
+    .ts-summary .row:last-child {
+      border-right: none;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .status-main-row {
+      flex-direction: column;
+    }
+
+    .status-main-cell.bordered {
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .status-sub-row {
+      flex-direction: column;
+    }
+
+    .status-sub-cell.bordered {
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .priority-list .row {
+      flex-wrap: wrap;
+    }
+
+    .priority-list .name {
+      width: 80px;
+    }
+
+    .priority-list .wbgt {
+      width: auto;
+      flex: 1;
+    }
+
+    .shelter-layout {
+      flex-direction: column;
+    }
+
+    .shelter-list {
+      border-left: none;
+      border-top: 1px solid var(--border);
+    }
+
+    .ts-summary .row {
+      flex: 1 1 50%;
+
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .ts-summary .row:nth-child(2n) {
+      border-right: none;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .wrap {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .header-inner,
+    .tab-nav-inner {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .logo-sub {
+      display: none;
+    }
+
+    .status-group {
+      gap: 6px;
+      font-size: 10px;
+    }
+
+    .panel-title-row {
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .panel-title-row h2 {
+      font-size: 18px;
+    }
+
+    .status-time-row {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .hero-pair {
+      gap: 18px;
+    }
+
+    .wbgt-big {
+      font-size: 36px;
+    }
+
+    .risk-count-row {
+      flex-direction: column;
+    }
+
+    .risk-count-cell {
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .risk-count-cell:last-child {
+      border-bottom: none;
+    }
+
+    .map-area {
+      min-height: 300px;
+    }
+
+    .analysis-region-tabs {
+      overflow-x: auto;
+      flex-wrap: nowrap;
+
+      padding-bottom: 2px;
+    }
+
+    .analysis-region-btn {
+      flex: 0 0 auto;
+    }
+  }
+
+  @media (min-width: 1440px) {
+    .header-inner,
+    .tab-nav-inner {
+      padding-left: 32px;
+      padding-right: 32px;
+    }
+
+    .wrap {
+      padding-left: 32px;
+      padding-right: 32px;
+    }
+
+    .panel-title-row h2 {
+      font-size: 21px;
+    }
+
+    .map-area {
+      min-height: 560px;
+    }
+
+    .shelter-map {
+      min-height: 380px;
+    }
+  }
+</style>
+</head>
+
+<body>
+
+<!-- ============================================================
+     HEADER + NAV
+============================================================ -->
+
+<div class="app-header-group">
+
+  <header class="site-header">
+
+    <div class="header-inner">
+
+      <div class="logo-group">
+        <span class="logo">JEJU HEAT GUARD</span>
+        <span class="logo-sub">
+          온열환경 위험 모니터링 및 대응 지원 시스템
+        </span>
+      </div>
+
+      <div class="status-group">
+
+        <span class="data-state" id="data-state-badge">
+          <span class="dot"></span>
+          <span id="data-state-text">DEMO DATA</span>
+        </span>
+
+        <span id="header-timestamp">
+          기준시각 데이터 조회 중
+        </span>
+
+      </div>
+
+    </div>
+
+  </header>
+
+
+  <nav class="tab-nav">
+
+    <div
+      class="tab-nav-inner"
+      id="tab-nav-inner"
+    ></div>
+
+  </nav>
+
+</div>
+
+
+<!-- ============================================================
+     MAIN
+============================================================ -->
+
+<main>
+
+  <div class="wrap">
+
+
+    <!-- ========================================================
+         TAB 1 — 상황판
+    ======================================================== -->
+
+    <section
+      class="tab-panel active"
+      id="tab-dashboard"
+    >
+
+      <div class="panel-title-row">
+
+        <div>
+
+          <h2>
+            제주 온열환경 실시간 상황판
+          </h2>
+
+          <p>
+            현재 제주가 얼마나 위험한지 빠르게 파악할 수 있도록
+            핵심 정보를 우선순위대로 표시합니다.
+          </p>
+
+        </div>
+
+        <span
+          class="demo-tag"
+          id="dashboard-demo-tag"
+        >
+          Demo Data
+        </span>
+
+      </div>
+
+
+      <div class="status-panel">
+
+        <div class="status-time-row">
+
+          <span style="color:var(--text-secondary)">
+            기준시각 · 데이터 출처
+          </span>
+
+          <span
+            id="dashboard-source-time"
+            style="font-weight:600"
+          >
+            데이터 조회 중
+          </span>
+
+        </div>
+
+
+        <div class="status-main-row">
+
+          <div class="status-main-cell bordered">
+
+            <div class="cap">
+              현재 가장 위험한 지역 ·
+              <span id="dashboard-hero-region">
+                -
+              </span>
+            </div>
+
+
+            <div class="hero-pair">
+
+              <div>
+
+                <span
+                  class="wbgt-big"
+                  id="hero-wbgt"
+                >
+                  -
+                </span>
+
+                <span class="wbgt-unit">
+                  °C
+                </span>
+
+                <div class="hero-label">
+                  WBGT (체감 열지수)
+                </div>
+
+              </div>
+
+
+              <div>
+
+                <span
+                  class="wbgt-big"
+                  id="hero-temp"
+                >
+                  -
+                </span>
+
+                <span class="wbgt-unit">
+                  °C
+                </span>
+
+                <div class="hero-label">
+                  현재기온
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div class="status-main-cell">
+
+            <div class="cap">
+              현재 위험단계
+            </div>
+
+            <div
+              id="dashboard-risk"
+              style="margin-top:6px;"
+            >
+              -
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div class="status-sub-row">
+
+          <div class="status-sub-cell bordered">
+
+            <div class="cap">
+              위험지역
+            </div>
+
+            <div
+              class="val"
+              id="dashboard-risk-area-count"
+            >
+              -
+            </div>
+
+          </div>
+
+
+          <div class="status-sub-cell bordered">
+
+            <div class="cap">
+              평균습도
+            </div>
+
+            <div
+              class="val"
+              id="dashboard-average-humidity"
+            >
+              -
+            </div>
+
+          </div>
+
+
+          <div class="status-sub-cell">
+
+            <div class="cap">
+              직전 대비 추세
+            </div>
+
+            <div
+              class="val"
+              id="dashboard-trend"
+            >
+              -
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div
+        class="status-note"
+        id="dashboard-note"
+      >
+        기상청 ASOS 관측자료를 기반으로 KMA2006 방식의 WBGT를
+        계산하여 표시합니다.
+      </div>
+
+
+      <h3 class="sub-heading">
+        지역별 현재 위험상황 — 어디를 우선 확인해야 하는가
+      </h3>
+
+
+      <div class="table-wrap">
+
+        <table>
+
+          <thead>
+
+            <tr>
+              <th>지역</th>
+              <th>WBGT</th>
+              <th>기온</th>
+              <th>위험단계</th>
+              <th>상태</th>
+            </tr>
+
+          </thead>
+
+          <tbody
+            id="dashboard-region-body"
+          ></tbody>
+
+        </table>
+
+      </div>
+
+
+      <div
+        class="source-line"
+        id="dashboard-source-line"
+      >
+        기상청 ASOS 관측자료
+      </div>
+
+    </section>
+
+
+
+    <!-- ========================================================
+         TAB 2 — 위험지도
+    ======================================================== -->
+
+    <section
+      class="tab-panel"
+      id="tab-map"
+    >
+
+      <div class="panel-title-row">
+
+        <div>
+
+          <h2>
+            위험 지도
+          </h2>
+
+          <p>
+            위험의 공간적 분포를 확인하는 화면입니다.
+            실제 데이터가 없는 지역의 위험도는 임의로 생성하지 않으며,
+            확보된 관측 단위(관측소) 기준으로 표시합니다.
+          </p>
+
+        </div>
+
+        <span class="demo-tag">
+          Map Placeholder · Phase 2 예정
+        </span>
+
+      </div>
+
+
+      <div class="map-layout">
+
+
+        <div class="map-area">
+
+          <div class="map-placeholder-text">
+            실제 제주 지도 시각화는 Phase 2에서 구현됩니다.<br />
+            아래 관측지점을 선택해 상세 정보를 확인하세요.
+          </div>
+
+
+          <div
+            class="map-legend"
+            id="map-legend"
+          ></div>
+
+
+          <div
+            class="station-selectors"
+            id="station-selectors"
+          ></div>
+
+        </div>
+
+
+        <div class="map-detail-panel">
+
+
+          <div class="place">
+
+            <svg
+              class="icon"
+              viewBox="0 0 24 24"
+            >
+              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+              <circle
+                cx="12"
+                cy="10"
+                r="3"
+              />
+            </svg>
+
+            <span id="detail-place-name">
+              -
+            </span>
+
+          </div>
+
+
+          <div
+            class="risk-row"
+            id="detail-risk"
+          >
+            -
+          </div>
+
+
+          <div
+            class="why-box"
+            id="detail-why"
+          >
+            데이터를 불러오는 중입니다.
+          </div>
+
+
+          <table
+            class="detail-table"
+            id="detail-table"
+          ></table>
+
+
+          <div
+            class="source-line"
+            id="map-source-line"
+          >
+            기상청 ASOS 관측자료
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+
+    <!-- ========================================================
+         TAB 3 — 대응현황
+    ======================================================== -->
+
+    <section
+      class="tab-panel"
+      id="tab-response"
+    >
+
+      <div class="panel-title-row">
+
+        <div>
+
+          <h2>
+            대응현황
+          </h2>
+
+          <p>
+            현재 위험상황에 따라 어떤 대응이 필요한지 확인하는 화면입니다.
+            위험지역을 먼저 확인한 뒤, 무더위쉼터와 응급 이송 정보를
+            이어서 확인할 수 있습니다.
+          </p>
+
+        </div>
+
+        <span class="demo-tag">
+          Demo Data
+        </span>
+
+      </div>
+
+
+      <div class="risk-count-row">
+
+        <div class="risk-count-cell">
+
+          <div class="cap">
+            주의 이상 지역
+          </div>
+
+          <div
+            class="val"
+            id="count-caution-up"
+          >
+            -
+          </div>
+
+        </div>
+
+
+        <div class="risk-count-cell">
+
+          <div class="cap">
+            엄중경계 이상
+          </div>
+
+          <div
+            class="val"
+            id="count-severe-up"
+          >
+            -
+          </div>
+
+        </div>
+
+
+        <div class="risk-count-cell">
+
+          <div class="cap">
+            위험
+          </div>
+
+          <div
+            class="val"
+            id="count-danger"
+          >
+            -
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <h3 class="sub-heading">
+        위험지역 우선순위
+      </h3>
+
+
+      <div
+        class="priority-list"
+        id="priority-list"
+      ></div>
+
+
+      <h3 class="sub-heading">
+        무더위쉼터
+      </h3>
+
+
+      <div
+        class="location-prompt"
+        id="location-prompt"
+      >
+
+        <div class="msg">
+
+          <svg
+            class="icon"
+            viewBox="0 0 24 24"
+          >
+            <path d="m3 11 19-9-9 19-2-8-8-2Z"/>
+          </svg>
+
+          현재 위치를 사용하면 가까운 순으로 정렬해 보여드립니다.
+          위치를 허용하지 않아도 아래 지도에서 제주 전체 쉼터를
+          확인할 수 있습니다.
+
+        </div>
+
+
+        <button
+          class="btn-primary"
+          id="use-location-btn"
+        >
+          현재 위치 사용
+        </button>
+
+      </div>
+
+
+      <div class="shelter-layout">
+
+        <div class="shelter-map">
+
+          제주 전체 지도 — 모든 무더위쉼터 위치 표시
+          (Phase 2 이후 연동)
+
+        </div>
+
+
+        <div
+          class="shelter-list"
+          id="shelter-list"
+        ></div>
+
+      </div>
+
+
+      <div
+        class="source-line"
+        style="margin-top:-20px;margin-bottom:24px;"
+      >
+        무더위쉼터 공공데이터
+        (Demo — 실제 데이터 연결 필요)
+      </div>
+
+
+      <h3 class="sub-heading">
+        응급 대응
+      </h3>
+
+
+      <div class="patient-box">
+
+        <div class="step-label">
+          환자 발생 위치를 지도에서 선택하세요.
+        </div>
+
+
+        <button
+          class="patient-select-btn"
+          id="patient-select-btn"
+        >
+
+          <svg
+            class="icon"
+            viewBox="0 0 24 24"
+          >
+            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+            <circle
+              cx="12"
+              cy="10"
+              r="3"
+            />
+          </svg>
+
+          <span id="patient-select-text">
+            지도에서 위치 선택 (Placeholder)
+          </span>
+
+        </button>
+
+      </div>
+
+
+      <div id="hospital-result">
+
+        <div class="table-wrap">
+
+          <table>
+
+            <thead>
+
+              <tr>
+                <th>의료기관</th>
+                <th>거리</th>
+                <th>예상 이동시간</th>
+                <th>비고</th>
+              </tr>
+
+            </thead>
+
+            <tbody
+              id="hospital-table-body"
+            ></tbody>
+
+          </table>
+
+        </div>
+
+
+        <div class="source-line">
+          거리 기반 예상값
+          (Demo — 실시간 교통 API 미연결)
+        </div>
+
+      </div>
+
+    </section>
+
+
+
+    <!-- ========================================================
+         TAB 4 — 상세 데이터
+    ======================================================== -->
+
+    <section
+      class="tab-panel"
+      id="tab-analysis"
+    >
+
+      <div class="panel-title-row">
+
+        <div>
+
+          <h2>
+            상세 데이터
+          </h2>
+
+          <p>
+            지역별·시간별 상세 수치와 WBGT 산출 근거,
+            데이터 출처를 확인할 수 있는 보조 정보입니다.
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <!-- 지역별 상세 비교 -->
+      <h3
+        class="sub-heading"
+        style="margin-top:0"
+      >
+        지역별 상세 비교
+      </h3>
+
+
+      <div
+        class="table-wrap"
+        style="margin-bottom:32px;"
+      >
+
+        <table>
+
+          <thead>
+
+            <tr>
+              <th>지역</th>
+              <th>관측소</th>
+              <th>WBGT</th>
+              <th>기온</th>
+              <th>습도</th>
+              <th>풍속</th>
+              <th>위험단계</th>
+            </tr>
+
+          </thead>
+
+          <tbody
+            id="regional-table-body"
+          ></tbody>
+
+        </table>
+
+      </div>
+
+
+      <!-- ======================================================
+           24시간 WBGT GRAPH
+           기존 시간별 변화 UI를 유지하고
+           지역 선택 기능만 추가
+      ======================================================= -->
+
+      <h3 class="sub-heading">
+        시간별 변화
+      </h3>
+
+
+      <div
+        class="analysis-region-tabs"
+        id="analysis-region-tabs"
+      ></div>
+
+
+      <div class="ts-layout">
+
+        <div class="ts-chart">
+
+          <svg
+            id="ts-svg"
+            viewBox="0 0 560 240"
+            width="100%"
+            preserveAspectRatio="xMidYMid meet"
+          ></svg>
+
+          <div
+            class="chart-note"
+          >
+            그래프의 점에 마우스를 올리거나 탭하면
+            해당 시각의 WBGT 값을 확인할 수 있습니다.
+          </div>
+
+        </div>
+
+
+        <div
+          class="ts-summary"
+          id="ts-summary"
+        ></div>
+
+      </div>
+
+
+      <!-- ======================================================
+           기존 연구 설명
+      ======================================================= -->
+
+      <div class="research-block">
+
+        <h3>
+          WBGT란 무엇인가
+        </h3>
+
+        <p>
+          WBGT(습구흑구온도, Wet-Bulb Globe Temperature)는
+          기온·습도·바람·복사열을 종합적으로 반영해
+          인체가 받는 열환경 부담을 나타내는 지표입니다.
+        </p>
+
+      </div>
+
+
+      <div class="research-block">
+
+        <h3>
+          데이터 및 산출 방법
+        </h3>
+
+        <p>
+          본 시스템은 기상청 ASOS 관측자료의 기온,
+          상대습도, 풍속, 일사량을 이용하여 KMA2006 방식으로
+          실외 WBGT를 추정합니다.
+        </p>
+
+        <div class="formula-code">
+          WBGT = 0.7 × Tw + 0.2 × Tg + 0.1 × Ta
+        </div>
+
+        <p>
+          직접 측정한 WBGT가 아닌 기상관측자료를 이용한
+          <strong>추정 WBGT</strong>이므로,
+          필요한 관측값이 없는 시점에는 임의의 값을 생성하지 않고
+          자료 부족으로 처리합니다.
+        </p>
+
+      </div>
+
+
+      <div class="research-block">
+
+        <h3>
+          데이터 출처
+        </h3>
+
+        <div class="source-list">
+
+          <div class="row">
+            기상청 ASOS 관측자료
+          </div>
+
+          <div class="row">
+            KMA2006 WBGT 추정모델
+          </div>
+
+          <div class="row">
+            제주 4개 관측지점
+            — 제주 / 서귀포 / 성산 / 고산
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </div>
+
+</main>
+
+
+<!-- ============================================================
+     FOOTER
+============================================================ -->
+
+<footer>
+
+  <div class="wrap">
+
+    <div class="foot-title">
+      JEJU HEAT GUARD
+    </div>
+
+    <div class="foot-desc">
+      본 화면의 기상·쉼터·의료기관·이송시간 정보 중
+      실제 데이터가 연결되지 않은 항목은 Demo 또는 Placeholder로 표시됩니다.<br />
+      기상자료는 기상청 ASOS 관측자료를 사용하며,
+      WBGT는 KMA2006 방식으로 추정합니다.
+    </div>
+
+  </div>
+
+</footer>
+
+
+<script>
+/* ============================================================
+   RISK LEVEL
+============================================================ */
+
+var RISK_LEVELS = [
+  {
+    key: "safe",
+    label: "거의 안전",
+    color: "#2E7D32",
+    max: 28
+  },
+  {
+    key: "caution",
+    label: "주의",
+    color: "#F9A825",
+    max: 31
+  },
+  {
+    key: "warning",
+    label: "경계",
+    color: "#EF6C00",
+    max: 33
+  },
+  {
+    key: "severe",
+    label: "엄중 경계",
+    color: "#D32F2F",
+    max: 35
+  },
+  {
+    key: "danger",
+    label: "위험",
+    color: "#8E0000",
+    max: Infinity
+  }
+];
+
+
+var STATUS_LABEL = {
+  safe: "관찰",
+  caution: "관찰",
+  warning: "모니터링",
+  severe: "주의 필요",
+  danger: "즉시 대응 필요",
+  unknown: "자료 부족"
+};
+
+
+/* ============================================================
+   REGION
+============================================================ */
+
+var REGION_ORDER = [
+  "north",
+  "south",
+  "east",
+  "west"
+];
+
+
+var REGION_INFO = {
+  north: {
+    name: "제주시",
+    station: "제주"
+  },
+
+  south: {
+    name: "서귀포",
+    station: "서귀포"
+  },
+
+  east: {
+    name: "성산",
+    station: "성산"
+  },
+
+  west: {
+    name: "고산",
+    station: "고산"
+  }
+};
+
+
+var weatherData = [];
+var historyData = {
+  north: [],
+  south: [],
+  east: [],
+  west: []
+};
+
+var requestedAt = null;
+
+var selectedRegionId = "north";
+var selectedAnalysisRegion = "north";
+
+
+/* ============================================================
+   DEMO DATA
+   무더위쉼터 / 응급기관 UI에만 사용
+============================================================ */
+
+var MOCK_SHELTERS = [
+  {
+    id: 1,
+    name: "OO주민센터 무더위쉼터",
+    address: "제주시 OO동",
+    distance: "0.4km",
+    hours: "09:00–18:00"
+  },
+  {
+    id: 2,
+    name: "OO경로당",
+    address: "제주시 OO동",
+    distance: "0.9km",
+    hours: "09:00–18:00"
+  },
+  {
+    id: 3,
+    name: "OO복지관",
+    address: "제주시 OO동",
+    distance: "1.3km",
+    hours: "09:00–20:00"
+  }
+];
+
+
+var MOCK_HOSPITALS = [
+  {
+    id: 1,
+    name: "OO병원 응급실",
+    etaMin: 6,
+    distance: "2.1km"
+  },
+  {
+    id: 2,
+    name: "OO의료원",
+    etaMin: 9,
+    distance: "3.6km"
+  },
+  {
+    id: 3,
+    name: "OO종합병원",
+    etaMin: 12,
+    distance: "5.0km"
+  }
+];
+
+
+/* ============================================================
+   TABS
+============================================================ */
+
+var TABS = [
+  {
+    id: "tab-dashboard",
+    label: "상황판",
+    core: true
+  },
+  {
+    id: "tab-map",
+    label: "위험지도",
+    core: true
+  },
+  {
+    id: "tab-response",
+    label: "대응현황",
+    core: true
+  },
+  {
+    id: "tab-analysis",
+    label: "상세 데이터",
+    core: false
+  }
+];
+
+
+/* ============================================================
+   ICONS
+============================================================ */
+
+var ICONS = {
+
+  thermometer:
+    '<path d="M14 4v10.5a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/>',
+
+  droplets:
+    '<path d="M12 2s6 7 6 11a6 6 0 1 1-12 0c0-4 6-11 6-11Z"/>',
+
+  wind:
+    '<path d="M2 8h11a2.5 2.5 0 1 0-2-4"/>' +
+    '<path d="M2 13h15a2.5 2.5 0 1 1-2 4"/>',
+
+  sun:
+    '<circle cx="12" cy="12" r="4"/>' +
+    '<path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'
+};
+
+
+function iconSvg(name) {
+  return (
+    '<svg class="icon" viewBox="0 0 24 24">' +
+    (ICONS[name] || "") +
+    '</svg>'
+  );
+}
+
+
+/* ============================================================
+   HELPERS
+============================================================ */
+
+function classifyRisk(wbgt) {
+
+  if (
+    wbgt === null ||
+    wbgt === undefined ||
+    !Number.isFinite(Number(wbgt))
+  ) {
+    return {
+      key: "unknown",
+      label: "자료 부족",
+      color: "#9CA3AF",
+      max: Infinity
+    };
+  }
+
+  var value = Number(wbgt);
+
+  for (var i = 0; i < RISK_LEVELS.length; i++) {
+
+    if (value < RISK_LEVELS[i].max) {
+      return RISK_LEVELS[i];
+    }
+
+  }
+
+  return RISK_LEVELS[RISK_LEVELS.length - 1];
+}
+
+
+function riskLabelHtml(level, dotSize) {
+
+  dotSize = dotSize || 9;
+
+  if (!level) {
+    level = classifyRisk(null);
+  }
+
+  if (level.key === "unknown") {
+
+    return (
+      '<span class="risk-label unknown">' +
+      '<span class="risk-dot unknown-dot" style="' +
+      'width:' + dotSize + 'px;' +
+      'height:' + dotSize + 'px;' +
+      '"></span>' +
+      '자료 부족' +
+      '</span>'
+    );
+  }
+
+  return (
+    '<span class="risk-label" style="color:' +
+    level.color +
+    '">' +
+
+    '<span class="risk-dot" style="' +
+    'width:' + dotSize + 'px;' +
+    'height:' + dotSize + 'px;' +
+    'background:' + level.color +
+    '"></span>' +
+
+    level.label +
+
+    '</span>'
+  );
+}
+
+
+function sortedByWbgtDesc(regions) {
+
+  return regions
+    .slice()
+    .sort(function (a, b) {
+
+      var aValue =
+        Number.isFinite(Number(a.wbgt))
+          ? Number(a.wbgt)
+          : -Infinity;
+
+      var bValue =
+        Number.isFinite(Number(b.wbgt))
+          ? Number(b.wbgt)
+          : -Infinity;
+
+      return bValue - aValue;
+    });
+}
+
+
+function formatNumber(value, digits) {
+
+  if (
+    value === null ||
+    value === undefined ||
+    !Number.isFinite(Number(value))
+  ) {
+    return "-";
+  }
+
+  return Number(value).toFixed(
+    digits === undefined ? 1 : digits
+  );
+}
+
+
+function formatObservedTime(value) {
+
+  if (!value) {
+    return "-";
+  }
+
+  var text = String(value);
+
+  if (/^\d{12}$/.test(text)) {
+
+    return (
+      text.substring(0, 4) +
+      "." +
+      text.substring(4, 6) +
+      "." +
+      text.substring(6, 8) +
+      " " +
+      text.substring(8, 10) +
+      ":" +
+      text.substring(10, 12)
+    );
+  }
+
+  if (/^\d{10}$/.test(text)) {
+
+    return (
+      text.substring(0, 4) +
+      "." +
+      text.substring(4, 6) +
+      "." +
+      text.substring(6, 8) +
+      " " +
+      text.substring(8, 10) +
+      ":00"
+    );
+  }
+
+  return text;
+}
+
+
+function formatChartTime(value) {
+
+  if (!value) {
+    return "";
+  }
+
+  var text = String(value);
+
+  if (text.length >= 12) {
+
+    return (
+      text.substring(8, 10) +
+      ":" +
+      text.substring(10, 12)
+    );
+  }
+
+  if (text.length >= 10) {
+
+    return (
+      text.substring(8, 10) +
+      ":00"
+    );
+  }
+
+  return text;
+}
+
+
+function findRegion(id) {
+
+  for (var i = 0; i < weatherData.length; i++) {
+
+    if (weatherData[i].id === id) {
+      return weatherData[i];
+    }
+
+  }
+
+  return null;
+}
+
+
+/* ============================================================
+   API DATA NORMALIZATION
+============================================================ */
+
+function normalizeRegion(raw) {
+
+  if (!raw) {
+    return null;
+  }
+
+  // 백엔드가 regionKey를 사용하는 현재 형식과
+  // 예전 id/key 형식 모두 지원
+  var id =
+    raw.id ||
+    raw.key ||
+    raw.regionKey ||
+    null;
+
+  // region 이름으로도 보완
+  if (!id) {
+
+    var regionName =
+      raw.region ||
+      raw.regionName ||
+      raw.name ||
+      "";
+
+    if (regionName === "제주시") {
+      id = "north";
+    }
+    else if (regionName === "서귀포") {
+      id = "south";
+    }
+    else if (regionName === "성산") {
+      id = "east";
+    }
+    else if (regionName === "고산") {
+      id = "west";
+    }
+  }
+
+  if (!id) {
+    return null;
+  }
+
+  var info =
+    REGION_INFO[id] ||
+    {
+      name:
+        raw.region ||
+        raw.regionName ||
+        raw.name ||
+        id,
+
+      station:
+        raw.stationName ||
+        raw.station ||
+        "-"
+    };
+
+  /*
+   * 현재 서버 형식:
+   *
+   * temp
+   * humidity
+   * wind
+   * solar
+   *
+   * 기존 프론트 형식:
+   *
+   * temperature
+   * humidity
+   * windSpeed
+   * solarRadiation
+   *
+   * 둘 다 대응
+   */
+
+  var temperature =
+    raw.temperature !== undefined
+      ? Number(raw.temperature)
+      : raw.temp !== undefined
+        ? Number(raw.temp)
+        : null;
+
+  var humidity =
+    raw.humidity !== undefined
+      ? Number(raw.humidity)
+      : null;
+
+  var windSpeed =
+    raw.windSpeed !== undefined
+      ? Number(raw.windSpeed)
+      : raw.wind !== undefined
+        ? Number(raw.wind)
+        : null;
+
+  var solarRadiation =
+    raw.solarRadiation !== undefined
+      ? Number(raw.solarRadiation)
+      : raw.solar !== undefined
+        ? Number(raw.solar)
+        : null;
+
+  return {
+
+    id: id,
+
+    name:
+      raw.name ||
+      raw.region ||
+      raw.regionName ||
+      info.name,
+
+    station:
+      raw.station ||
+      raw.stationName ||
+      info.station,
+
+    stationId:
+      raw.stationId ||
+      null,
+
+    success:
+      raw.success !== false,
+
+    observedAt:
+      raw.observedAt ||
+      raw.time ||
+      raw.TM ||
+      null,
+
+    temperature:
+      Number.isFinite(temperature)
+        ? temperature
+        : null,
+
+    humidity:
+      Number.isFinite(humidity)
+        ? humidity
+        : null,
+
+    windSpeed:
+      Number.isFinite(windSpeed)
+        ? windSpeed
+        : null,
+
+    solarRadiation:
+      Number.isFinite(solarRadiation)
+        ? solarRadiation
+        : null,
+
+    wbgt:
+      raw.wbgt !== undefined &&
+      raw.wbgt !== null &&
+      Number.isFinite(Number(raw.wbgt))
+        ? Number(raw.wbgt)
+        : null,
+
+    wetBulbTemperature:
+      raw.wetBulbTemperature !== undefined
+        ? Number(raw.wetBulbTemperature)
+        : raw.Tw !== undefined
+          ? Number(raw.Tw)
+          : null,
+
+    globeTemperature:
+      raw.globeTemperature !== undefined
+        ? Number(raw.globeTemperature)
+        : raw.Tg !== undefined
+          ? Number(raw.Tg)
+          : null,
+
+    message:
+      raw.message ||
+      null
+  };
+}
+
+
+function normalizeHistoryPoint(raw) {
+
+  if (!raw) {
+    return null;
+  }
+
+  var time =
+    raw.time ||
+    raw.observedAt ||
+    raw.TM ||
+    raw.tm ||
+    null;
+
+  var wbgt =
+    raw.wbgt !== undefined &&
+    raw.wbgt !== null
+      ? Number(raw.wbgt)
+      : null;
+
+  return {
+
+    time: time,
+
+    observedAt:
+      raw.observedAt ||
+      raw.time ||
+      raw.TM ||
+      null,
+
+    wbgt:
+      Number.isFinite(wbgt)
+        ? wbgt
+        : null,
+
+    temperature:
+      raw.temperature !== undefined
+        ? Number(raw.temperature)
+        : null,
+
+    humidity:
+      raw.humidity !== undefined
+        ? Number(raw.humidity)
+        : null,
+
+    windSpeed:
+      raw.windSpeed !== undefined
+        ? Number(raw.windSpeed)
+        : null,
+
+    solarRadiation:
+      raw.solarRadiation !== undefined
+        ? Number(raw.solarRadiation)
+        : null
+  };
+}
+
+
+function normalizeHistory(rawHistory) {
+
+  var result = {
+    north: [],
+    south: [],
+    east: [],
+    west: []
+  };
+
+  if (!rawHistory) {
+    return result;
+  }
+
+  for (var i = 0; i < REGION_ORDER.length; i++) {
+
+    var regionId =
+      REGION_ORDER[i];
+
+    var source =
+      rawHistory[regionId];
+
+    if (!Array.isArray(source)) {
+      continue;
+    }
+
+    var points = [];
+
+    for (var j = 0; j < source.length; j++) {
+
+      var point =
+        normalizeHistoryPoint(source[j]);
+
+      if (point) {
+        points.push(point);
+      }
+
+    }
+
+    points.sort(function (a, b) {
+
+      return String(a.time || "")
+        .localeCompare(
+          String(b.time || "")
+        );
+
+    });
+
+    result[regionId] = points;
+  }
+
+  return result;
+}
+
+
+/* ============================================================
+   API LOAD
+============================================================ */
+
+async function loadWeatherData() {
+
+  setDataState(
+    "loading",
+    "DATA 조회 중"
+  );
+
+  try {
+
+    var response =
+      await fetch(
+        "/api/weather",
+        {
+          method: "GET",
+          cache: "no-store"
+        }
+      );
+
+    if (!response.ok) {
+
+      throw new Error(
+        "API HTTP 오류 " +
+        response.status
+      );
+    }
+
+    var json =
+      await response.json();
+
+    if (!json.success) {
+
+      throw new Error(
+        json.message ||
+        "기상청 데이터를 가져오지 못했습니다."
+      );
+    }
+
+
+    /*
+     * 현재 백엔드 형식:
+     *
+     * {
+     *   success: true,
+     *   regions: [...],
+     *   history: {...},
+     *   updatedAt: ...
+     * }
+     *
+     * 예전 형식 data도 함께 대응
+     */
+
+    var rawRegions =
+      Array.isArray(json.regions)
+        ? json.regions
+        : Array.isArray(json.data)
+          ? json.data
+          : Array.isArray(json.stations)
+            ? json.stations
+            : [];
+
+
+    weatherData = [];
+
+    for (var i = 0; i < rawRegions.length; i++) {
+
+      var normalized =
+        normalizeRegion(
+          rawRegions[i]
+        );
+
+      if (normalized) {
+        weatherData.push(
+          normalized
+        );
+      }
+
+    }
+
+
+    /*
+     * API에서 regions 순서가 달라도
+     * 화면에서는 제주 / 서귀포 / 성산 / 고산 순서 유지
+     */
+
+    weatherData.sort(function (a, b) {
+
+      return (
+        REGION_ORDER.indexOf(a.id) -
+        REGION_ORDER.indexOf(b.id)
+      );
+
+    });
+
+
+    historyData =
+      normalizeHistory(
+        json.history
+      );
+
+
+    requestedAt =
+      json.requestedAt ||
+      json.requestedTime ||
+      json.updatedAt ||
+      null;
+
+
+    if (weatherData.length === 0) {
+
+      throw new Error(
+        "현재 관측자료가 없습니다."
+      );
+    }
+
+
+    setDataState(
+      "live",
+      "LIVE DATA"
+    );
+
+
+    updateTimestamp(
+      requestedAt
+    );
+
+
+    renderAll();
+
+
+  } catch (error) {
+
+    console.error(
+      "기상 데이터 조회 실패:",
+      error
+    );
+
+
+    setDataState(
+      "error",
+      "DATA ERROR"
+    );
+
+
+    document.getElementById(
+      "header-timestamp"
+    ).textContent =
+      "기상자료 조회 실패";
+
+
+    /*
+     * 실제 데이터를 가져오지 못한 경우
+     * 임의의 WBGT 값을 화면에 만들지 않습니다.
+     */
+
+    weatherData = [];
+
+    historyData = {
+      north: [],
+      south: [],
+      east: [],
+      west: []
+    };
+
+
+    renderAll();
+
+
+    showApiError(
+      error.message
+    );
+  }
+}
+
+
+/* ============================================================
+   HEADER STATE
+============================================================ */
+
+function setDataState(
+  state,
+  text
+) {
+
+  var badge =
+    document.getElementById(
+      "data-state-badge"
+    );
+
+  var textEl =
+    document.getElementById(
+      "data-state-text"
+    );
+
+  badge.classList.remove(
+    "live",
+    "error"
+  );
+
+  if (state === "live") {
+    badge.classList.add("live");
+  }
+
+  if (state === "error") {
+    badge.classList.add("error");
+  }
+
+  textEl.textContent =
+    text;
+}
+
+
+function updateTimestamp(value) {
+
+  var formatted =
+    formatObservedTime(value);
+
+  document.getElementById(
+    "header-timestamp"
+  ).textContent =
+    formatted === "-"
+      ? "기준시각 확인 필요"
+      : "기준시각 " + formatted;
+
+  document.getElementById(
+    "dashboard-source-time"
+  ).textContent =
+    formatted === "-"
+      ? "기상청 ASOS 관측자료"
+      : formatted +
+        " · 기상청 ASOS 관측자료";
+
+  document.getElementById(
+    "dashboard-source-line"
+  ).textContent =
+    "위험도가 높은 지역이 상단에 오도록 정렬되어 있습니다 · " +
+    (formatted === "-"
+      ? "기준시각 확인 필요"
+      : formatted + " 기준");
+
+  document.getElementById(
+    "map-source-line"
+  ).textContent =
+    "기상청 ASOS 관측자료 · " +
+    (formatted === "-"
+      ? "기준시각 확인 필요"
+      : formatted + " 기준");
+}
+
+
+/* ============================================================
+   API ERROR
+============================================================ */
+
+function showApiError(message) {
+
+  document.getElementById(
+    "dashboard-hero-region"
+  ).textContent =
+    "자료 없음";
+
+  document.getElementById(
+    "hero-wbgt"
+  ).textContent =
+    "-";
+
+  document.getElementById(
+    "hero-temp"
+  ).textContent =
+    "-";
+
+  document.getElementById(
+    "dashboard-risk"
+  ).innerHTML =
+    riskLabelHtml(
+      classifyRisk(null),
+      12
+    );
+
+  document.getElementById(
+    "dashboard-note"
+  ).textContent =
+    "기상청 ASOS 데이터를 불러오지 못했습니다. " +
+    (message || "");
+
+  document.getElementById(
+    "dashboard-average-humidity"
+  ).textContent =
+    "-";
+
+  document.getElementById(
+    "dashboard-risk-area-count"
+  ).textContent =
+    "-";
+
+  document.getElementById(
+    "dashboard-trend"
+  ).textContent =
+    "-";
+}
+
+
+/* ============================================================
+   TAB NAVIGATION
+============================================================ */
+
+function renderTabNav() {
+
+  var nav =
+    document.getElementById(
+      "tab-nav-inner"
+    );
+
+  var html = "";
+
+  for (var i = 0; i < TABS.length; i++) {
+
+    var tab =
+      TABS[i];
+
+    if (
+      !tab.core &&
+      i > 0 &&
+      TABS[i - 1].core
+    ) {
+
+      html +=
+        '<span class="tab-divider"></span>';
+    }
+
+
+    html +=
+      '<button class="tab-btn' +
+      (tab.core ? "" : " aux") +
+      (i === 0 ? " active" : "") +
+      '" data-tab="' +
+      tab.id +
+      '">' +
+      tab.label +
+      "</button>";
+  }
+
+  nav.innerHTML =
+    html;
+
+
+  var buttons =
+    nav.querySelectorAll(
+      ".tab-btn"
+    );
+
+
+  for (
+    var j = 0;
+    j < buttons.length;
+    j++
+  ) {
+
+    buttons[j].addEventListener(
+      "click",
+      function (event) {
+
+        switchTab(
+          event.currentTarget
+            .getAttribute(
+              "data-tab"
+            )
+        );
+
+      }
+    );
+
+  }
+}
+
+
+function switchTab(tabId) {
+
+  var panels =
+    document.querySelectorAll(
+      ".tab-panel"
+    );
+
+
+  for (
+    var i = 0;
+    i < panels.length;
+    i++
+  ) {
+
+    panels[i].classList.remove(
+      "active"
+    );
+
+  }
+
+
+  var target =
+    document.getElementById(
+      tabId
+    );
+
+
+  if (target) {
+
+    target.classList.add(
+      "active"
+    );
+
+  }
+
+
+  var buttons =
+    document.querySelectorAll(
+      ".tab-btn"
+    );
+
+
+  for (
+    var j = 0;
+    j < buttons.length;
+    j++
+  ) {
+
+    buttons[j].classList.toggle(
+      "active",
+      buttons[j].getAttribute(
+        "data-tab"
+      ) === tabId
+    );
+
+  }
+
+
+  window.scrollTo(
+    0,
+    0
+  );
+
+
+  /*
+   * 상세 데이터 탭은 display:none 상태에서
+   * SVG가 0폭으로 그려질 수 있으므로
+   * 탭이 열린 뒤 한 번 더 그립니다.
+   */
+
+  if (tabId === "tab-analysis") {
+
+    requestAnimationFrame(
+      function () {
+
+        renderAnalysisRegionTabs();
+        renderTimeSeries();
+
+      }
+    );
+  }
+}
+
+
+/* ============================================================
+   TAB 1 — DASHBOARD
+============================================================ */
+
+function renderDashboard() {
+
+  var body =
+    document.getElementById(
+      "dashboard-region-body"
+    );
+
+
+  if (
+    !weatherData ||
+    weatherData.length === 0
+  ) {
+
+    body.innerHTML =
+      '<tr>' +
+      '<td colspan="5" style="text-align:center;color:var(--text-tertiary);padding:24px;">' +
+      '현재 기상자료를 불러오지 못했습니다.' +
+      '</td>' +
+      '</tr>';
+
+    return;
+  }
+
+
+  var sorted =
+    sortedByWbgtDesc(
+      weatherData
+    );
+
+
+  var topRegion =
+    sorted[0];
+
+
+  var topLevel =
+    classifyRisk(
+      topRegion.wbgt
+    );
+
+
+  document.getElementById(
+    "dashboard-hero-region"
+  ).textContent =
+    topRegion.name;
+
+
+  document.getElementById(
+    "hero-wbgt"
+  ).textContent =
+    formatNumber(
+      topRegion.wbgt,
+      1
+    );
+
+
+  document.getElementById(
+    "hero-temp"
+  ).textContent =
+    formatNumber(
+      topRegion.temperature,
+      1
+    );
+
+
+  document.getElementById(
+    "dashboard-risk"
+  ).innerHTML =
+    riskLabelHtml(
+      topLevel,
+      12
+    );
+
+
+  var riskAreaCount = 0;
+
+  var humidityValues = [];
+
+
+  for (
+    var i = 0;
+    i < weatherData.length;
+    i++
+  ) {
+
+    var region =
+      weatherData[i];
+
+
+    if (
+      region.wbgt !== null &&
+      classifyRisk(
+        region.wbgt
+      ).key !== "safe"
+    ) {
+
+      riskAreaCount++;
+    }
+
+
+    if (
+      Number.isFinite(
+        Number(region.humidity)
+      )
+    ) {
+
+      humidityValues.push(
+        Number(region.humidity)
+      );
+
+    }
+
+  }
+
+
+  document.getElementById(
+    "dashboard-risk-area-count"
+  ).textContent =
+    riskAreaCount + "곳";
+
+
+  if (humidityValues.length > 0) {
+
+    var humiditySum =
+      humidityValues.reduce(
+        function (sum, value) {
+          return sum + value;
+        },
+        0
+      );
+
+
+    var humidityAverage =
+      humiditySum /
+      humidityValues.length;
+
+
+    document.getElementById(
+      "dashboard-average-humidity"
+    ).textContent =
+      humidityAverage.toFixed(0) + "%";
+
+  } else {
+
+    document.getElementById(
+      "dashboard-average-humidity"
+    ).textContent =
+      "-";
+
+  }
+
+
+  /*
+   * 가장 위험한 지역의 최근 2개 WBGT로
+   * 추세를 계산합니다.
+   */
+
+  var topHistory =
+    historyData[
+      topRegion.id
+    ] || [];
+
+
+  var validHistory =
+    topHistory.filter(
+      function (item) {
+
+        return (
+          item.wbgt !== null &&
+          Number.isFinite(
+            Number(item.wbgt)
+          )
+        );
+
+      }
+    );
+
+
+  var trendEl =
+    document.getElementById(
+      "dashboard-trend"
+    );
+
+
+  if (validHistory.length >= 2) {
+
+    var previous =
+      Number(
+        validHistory[
+          validHistory.length - 2
+        ].wbgt
+      );
+
+    var latest =
+      Number(
+        validHistory[
+          validHistory.length - 1
+        ].wbgt
+      );
+
+    var trend =
+      latest - previous;
+
+
+    trendEl.textContent =
+      (trend >= 0 ? "+" : "") +
+      trend.toFixed(1) +
+      "°C";
+
+
+    trendEl.style.color =
+      trend >= 0
+        ? "#D32F2F"
+        : "#2E7D32";
+
+  } else {
+
+    trendEl.textContent =
+      "자료 부족";
+
+    trendEl.style.color =
+      "var(--text-secondary)";
+  }
+
+
+  var rows = "";
+
+
+  for (
+    var k = 0;
+    k < sorted.length;
+    k++
+  ) {
+
+    var r =
+      sorted[k];
+
+    var level =
+      classifyRisk(
+        r.wbgt
+      );
+
+
+    var wbgtText =
+      r.wbgt === null
+        ? "-"
+        : formatNumber(
+            r.wbgt,
+            1
+          ) + "°C";
+
+
+    var temperatureText =
+      r.temperature === null
+        ? "-"
+        : formatNumber(
+            r.temperature,
+            1
+          ) + "°C";
+
+
+    rows +=
+      "<tr>" +
+
+      '<td class="strong">' +
+      r.name +
+      "</td>" +
+
+      '<td class="strong">' +
+      wbgtText +
+      "</td>" +
+
+      '<td class="muted">' +
+      temperatureText +
+      "</td>" +
+
+      "<td>" +
+      riskLabelHtml(
+        level,
+        8
+      ) +
+      "</td>" +
+
+      '<td class="muted">' +
+      (
+        STATUS_LABEL[
+          level.key
+        ] ||
+        "자료 부족"
+      ) +
+      "</td>" +
+
+      "</tr>";
+  }
+
+
+  body.innerHTML =
+    rows;
+}
+
+
+/* ============================================================
+   TAB 2 — MAP
+============================================================ */
+
+function renderMap() {
+
+  var legend =
+    document.getElementById(
+      "map-legend"
+    );
+
+
+  var legendHtml = "";
+
+
+  for (
+    var i = 0;
+    i < RISK_LEVELS.length;
+    i++
+  ) {
+
+    var risk =
+      RISK_LEVELS[i];
+
+
+    legendHtml +=
+      '<div class="row">' +
+
+      '<span class="dot" style="' +
+      'border-radius:999px;' +
+      'background:' +
+      risk.color +
+      '"></span>' +
+
+      risk.label +
+
+      "</div>";
+  }
+
+
+  legend.innerHTML =
+    legendHtml;
+
+
+  var selectors =
+    document.getElementById(
+      "station-selectors"
+    );
+
+
+  var html = "";
+
+
+  for (
+    var j = 0;
+    j < REGION_ORDER.length;
+    j++
+  ) {
+
+    var regionId =
+      REGION_ORDER[j];
+
+    var region =
+      findRegion(
+        regionId
+      );
+
+
+    if (!region) {
+      continue;
+    }
+
+
+    var level =
+      classifyRisk(
+        region.wbgt
+      );
+
+
+    var active =
+      regionId === selectedRegionId;
+
+
+    var wbgtText =
+      region.wbgt === null
+        ? "-"
+        : formatNumber(
+            region.wbgt,
+            1
+          );
+
+
+    var tempText =
+      region.temperature === null
+        ? "-"
+        : formatNumber(
+            region.temperature,
+            1
+          );
+
+
+    html +=
+      '<button class="station-btn' +
+      (active ? " active" : "") +
+      '" data-id="' +
+      region.id +
+      '">' +
+
+      '<span class="dot" style="' +
+      "border-radius:999px;" +
+      "background:" +
+      level.color +
+      '"></span>' +
+
+      region.name +
+      " WBGT " +
+      wbgtText +
+      "° · 기온 " +
+      tempText +
+      "°" +
+
+      "</button>";
+  }
+
+
+  selectors.innerHTML =
+    html;
+
+
+  var buttons =
+    selectors.querySelectorAll(
+      ".station-btn"
+    );
+
+
+  for (
+    var m = 0;
+    m < buttons.length;
+    m++
+  ) {
+
+    buttons[m].addEventListener(
+      "click",
+      function (event) {
+
+        selectedRegionId =
+          event.currentTarget
+            .getAttribute(
+              "data-id"
+            );
+
+
+        renderMap();
+        renderDetailPanel();
+
+      }
+    );
+  }
+}
+
+
+/* ============================================================
+   MAP DETAIL PANEL
+============================================================ */
+
+function renderDetailPanel() {
+
+  var region =
+    findRegion(
+      selectedRegionId
+    );
+
+
+  if (!region) {
+
+    document.getElementById(
+      "detail-place-name"
+    ).textContent =
+      "자료 없음";
+
+    document.getElementById(
+      "detail-risk"
+    ).innerHTML =
+      riskLabelHtml(
+        classifyRisk(null),
+        9
+      );
+
+    document.getElementById(
+      "detail-why"
+    ).textContent =
+      "현재 관측자료를 불러오지 못했습니다.";
+
+    document.getElementById(
+      "detail-table"
+    ).innerHTML =
+      "";
+
+    return;
+  }
+
+
+  var level =
+    classifyRisk(
+      region.wbgt
+    );
+
+
+  document.getElementById(
+    "detail-place-name"
+  ).textContent =
+    region.name +
+    " (" +
+    region.station +
+    ")";
+
+
+  document.getElementById(
+    "detail-risk"
+  ).innerHTML =
+    riskLabelHtml(
+      level,
+      9
+    );
+
+
+  var temperature =
+    formatNumber(
+      region.temperature,
+      1
+    );
+
+  var humidity =
+    formatNumber(
+      region.humidity,
+      0
+    );
+
+  var wind =
+    formatNumber(
+      region.windSpeed,
+      1
+    );
+
+  var solar =
+    formatNumber(
+      region.solarRadiation,
+      1
+    );
+
+  var wbgt =
+    formatNumber(
+      region.wbgt,
+      1
+    );
+
+
+  if (region.wbgt === null) {
+
+    document.getElementById(
+      "detail-why"
+    ).textContent =
+      "기온 " +
+      temperature +
+      "°C, 습도 " +
+      humidity +
+      "%, 풍속 " +
+      wind +
+      " m/s, 일사량 " +
+      solar +
+      " W/m²가 확인되었으나 " +
+      "WBGT 계산에 필요한 자료가 부족합니다.";
+
+  } else {
+
+    document.getElementById(
+      "detail-why"
+    ).textContent =
+      "기온 " +
+      temperature +
+      "°C, 습도 " +
+      humidity +
+      "%, 풍속 " +
+      wind +
+      " m/s, 일사량 " +
+      solar +
+      " W/m²를 이용하여 " +
+      "KMA2006 방식으로 추정한 WBGT는 " +
+      wbgt +
+      "°C입니다.";
+
+  }
+
+
+  var rows = [
+
+    {
+      icon: "thermometer",
+      label: "WBGT",
+      value:
+        region.wbgt === null
+          ? "자료 부족"
+          : wbgt + "°C",
+      big: true
+    },
+
+    {
+      icon: "thermometer",
+      label: "기온",
+      value:
+        region.temperature === null
+          ? "-"
+          : temperature + "°C"
+    },
+
+    {
+      icon: "droplets",
+      label: "상대습도",
+      value:
+        region.humidity === null
+          ? "-"
+          : humidity + "%"
+    },
+
+    {
+      icon: "wind",
+      label: "풍속",
+      value:
+        region.windSpeed === null
+          ? "-"
+          : wind + " m/s"
+    },
+
+    {
+      icon: "sun",
+      label: "일사량",
+      value:
+        region.solarRadiation === null
+          ? "-"
+          : solar + " W/m²"
+    }
+
+  ];
+
+
+  var html = "";
+
+
+  for (
+    var j = 0;
+    j < rows.length;
+    j++
+  ) {
+
+    var row =
+      rows[j];
+
+
+    html +=
+      "<tr>" +
+
+      '<td class="label">' +
+      iconSvg(row.icon) +
+      row.label +
+      "</td>" +
+
+      '<td class="value' +
+      (row.big ? " big" : "") +
+      '">' +
+      row.value +
+      "</td>" +
+
+      "</tr>";
+  }
+
+
+  document.getElementById(
+    "detail-table"
+  ).innerHTML =
+    html;
+}
+
+
+/* ============================================================
+   TAB 3 — RESPONSE
+============================================================ */
+
+function renderResponseCounts() {
+
+  var cautionUp = 0;
+  var severeUp = 0;
+  var danger = 0;
+
+
+  for (
+    var i = 0;
+    i < weatherData.length;
+    i++
+  ) {
+
+    var wbgt =
+      weatherData[i].wbgt;
+
+
+    if (
+      wbgt === null ||
+      wbgt === undefined
+    ) {
+      continue;
+    }
+
+
+    var key =
+      classifyRisk(
+        wbgt
+      ).key;
+
+
+    if (
+      key !== "safe"
+    ) {
+      cautionUp++;
+    }
+
+
+    if (
+      key === "severe" ||
+      key === "danger"
+    ) {
+      severeUp++;
+    }
+
+
+    if (
+      key === "danger"
+    ) {
+      danger++;
+    }
+
+  }
+
+
+  document.getElementById(
+    "count-caution-up"
+  ).textContent =
+    cautionUp + "곳";
+
+
+  document.getElementById(
+    "count-severe-up"
+  ).textContent =
+    severeUp + "곳";
+
+
+  document.getElementById(
+    "count-danger"
+  ).textContent =
+    danger + "곳";
+}
+
+
+function renderPriorityList() {
+
+  var list =
+    document.getElementById(
+      "priority-list"
+    );
+
+
+  var sorted =
+    sortedByWbgtDesc(
+      weatherData
+    );
+
+
+  if (
+    !sorted ||
+    sorted.length === 0
+  ) {
+
+    list.innerHTML =
+      '<div class="row" style="color:var(--text-tertiary);">' +
+      "현재 기상자료가 없습니다." +
+      "</div>";
+
+    return;
+  }
+
+
+  var html = "";
+
+
+  for (
+    var i = 0;
+    i < sorted.length;
+    i++
+  ) {
+
+    var r =
+      sorted[i];
+
+
+    var level =
+      classifyRisk(
+        r.wbgt
+      );
+
+
+    var wbgtText =
+      r.wbgt === null
+        ? "-"
+        : formatNumber(
+            r.wbgt,
+            1
+          );
+
+
+    var temperatureText =
+      r.temperature === null
+        ? "-"
+        : formatNumber(
+            r.temperature,
+            1
+          );
+
+
+    html +=
+      '<div class="row">' +
+
+      '<span class="rank">' +
+      (i + 1) +
+      "</span>" +
+
+      '<span class="name">' +
+      r.name +
+      "</span>" +
+
+      '<span class="wbgt">' +
+      "WBGT " +
+      wbgtText +
+      "°C · 기온 " +
+      temperatureText +
+      "°C" +
+      "</span>" +
+
+      riskLabelHtml(
+        level,
+        8
+      ) +
+
+      "</div>";
+  }
+
+
+  list.innerHTML =
+    html;
+}
+
+
+/* ============================================================
+   SHELTERS
+============================================================ */
+
+var locationAllowed = false;
+
+
+function renderShelters() {
+
+  var list =
+    document.getElementById(
+      "shelter-list"
+    );
+
+
+  var html = "";
+
+
+  for (
+    var i = 0;
+    i < MOCK_SHELTERS.length;
+    i++
+  ) {
+
+    var shelter =
+      MOCK_SHELTERS[i];
+
+
+    html +=
+      '<div class="item">' +
+
+      '<div class="name">' +
+      shelter.name +
+      "</div>" +
+
+      '<div class="addr">' +
+      shelter.address +
+      "</div>" +
+
+      '<div class="meta">' +
+
+      "<span>" +
+      "운영 " +
+      shelter.hours +
+      "</span>" +
+
+      (
+        locationAllowed
+          ? '<span class="dist">' +
+            shelter.distance +
+            "</span>"
+          : ""
+      ) +
+
+      "</div>" +
+
+      "</div>";
+  }
+
+
+  list.innerHTML =
+    html;
+}
+
+
+function setupLocationPrompt() {
+
+  document
+    .getElementById(
+      "use-location-btn"
+    )
+    .addEventListener(
+      "click",
+      function () {
+
+        locationAllowed =
+          true;
+
+
+        document.getElementById(
+          "location-prompt"
+        ).style.display =
+          "none";
+
+
+        renderShelters();
+
+      }
+    );
+}
+
+
+/* ============================================================
+   EMERGENCY
+============================================================ */
+
+function setupEmergencyTransport() {
+
+  var button =
+    document.getElementById(
+      "patient-select-btn"
+    );
+
+
+  button.addEventListener(
+    "click",
+    function () {
+
+      button.classList.add(
+        "selected"
+      );
+
+
+      document.getElementById(
+        "patient-select-text"
+      ).textContent =
+        "환자 발생 위치 선택됨 (Demo 좌표)";
+
+
+      document.getElementById(
+        "hospital-result"
+      ).classList.add(
+        "show"
+      );
+
+
+      renderHospitalTable();
+
+    }
+  );
+}
+
+
+function renderHospitalTable() {
+
+  var sorted =
+    MOCK_HOSPITALS
+      .slice()
+      .sort(
+        function (a, b) {
+          return (
+            a.etaMin -
+            b.etaMin
+          );
+        }
+      );
+
+
+  var tbody =
+    document.getElementById(
+      "hospital-table-body"
+    );
+
+
+  var html = "";
+
+
+  for (
+    var i = 0;
+    i < sorted.length;
+    i++
+  ) {
+
+    var hospital =
+      sorted[i];
+
+
+    html +=
+      "<tr>" +
+
+      '<td class="strong">' +
+      hospital.name +
+      "</td>" +
+
+      '<td class="muted">' +
+      hospital.distance +
+      "</td>" +
+
+      '<td class="strong">' +
+      hospital.etaMin +
+      "분" +
+      "</td>" +
+
+      '<td class="muted" style="font-size:12px">' +
+      (
+        i === 0
+          ? "예상 이동시간이 가장 짧은 후보"
+          : ""
+      ) +
+      "</td>" +
+
+      "</tr>";
+  }
+
+
+  tbody.innerHTML =
+    html;
+}
+
+
+/* ============================================================
+   TAB 4 — REGIONAL TABLE
+============================================================ */
+
+function renderRegionalTable() {
+
+  var tbody =
+    document.getElementById(
+      "regional-table-body"
+    );
+
+
+  if (
+    !weatherData ||
+    weatherData.length === 0
+  ) {
+
+    tbody.innerHTML =
+      '<tr>' +
+      '<td colspan="7" style="text-align:center;color:var(--text-tertiary);padding:24px;">' +
+      "현재 기상자료가 없습니다." +
+      "</td>" +
+      "</tr>";
+
+    return;
+  }
+
+
+  var html = "";
+
+
+  for (
+    var i = 0;
+    i < REGION_ORDER.length;
+    i++
+  ) {
+
+    var region =
+      findRegion(
+        REGION_ORDER[i]
+      );
+
+
+    if (!region) {
+      continue;
+    }
+
+
+    var level =
+      classifyRisk(
+        region.wbgt
+      );
+
+
+    html +=
+      "<tr>" +
+
+      '<td class="strong">' +
+      region.name +
+      "</td>" +
+
+      '<td class="muted">' +
+      region.station +
+      "</td>" +
+
+      '<td class="strong">' +
+      (
+        region.wbgt === null
+          ? "-"
+          : formatNumber(
+              region.wbgt,
+              1
+            ) + "°C"
+      ) +
+      "</td>" +
+
+      '<td class="muted">' +
+      (
+        region.temperature === null
+          ? "-"
+          : formatNumber(
+              region.temperature,
+              1
+            ) + "°C"
+      ) +
+      "</td>" +
+
+      '<td class="muted">' +
+      (
+        region.humidity === null
+          ? "-"
+          : formatNumber(
+              region.humidity,
+              0
+            ) + "%"
+      ) +
+      "</td>" +
+
+      '<td class="muted">' +
+      (
+        region.windSpeed === null
+          ? "-"
+          : formatNumber(
+              region.windSpeed,
+              1
+            ) + " m/s"
+      ) +
+      "</td>" +
+
+      "<td>" +
+      riskLabelHtml(
+        level,
+        8
+      ) +
+      "</td>" +
+
+      "</tr>";
+  }
+
+
+  tbody.innerHTML =
+    html;
+}
+
+
+/* ============================================================
+   ANALYSIS REGION BUTTONS
+============================================================ */
+
+function renderAnalysisRegionTabs() {
+
+  var container =
+    document.getElementById(
+      "analysis-region-tabs"
+    );
+
+
+  if (!container) {
+    return;
+  }
+
+
+  var html = "";
+
+
+  for (
+    var i = 0;
+    i < REGION_ORDER.length;
+    i++
+  ) {
+
+    var id =
+      REGION_ORDER[i];
+
+
+    var info =
+      REGION_INFO[id];
+
+
+    html +=
+      '<button class="analysis-region-btn' +
+      (
+        id === selectedAnalysisRegion
+          ? " active"
+          : ""
+      ) +
+      '" data-region="' +
+      id +
+      '">' +
+      info.name +
+      "</button>";
+  }
+
+
+  container.innerHTML =
+    html;
+
+
+  var buttons =
+    container.querySelectorAll(
+      ".analysis-region-btn"
+    );
+
+
+  for (
+    var j = 0;
+    j < buttons.length;
+    j++
+  ) {
+
+    buttons[j].addEventListener(
+      "click",
+      function (event) {
+
+        selectedAnalysisRegion =
+          event.currentTarget
+            .getAttribute(
+              "data-region"
+            );
+
+
+        renderAnalysisRegionTabs();
+        renderTimeSeries();
+
+      }
+    );
+  }
+}
+
+
+/* ============================================================
+   TIME SERIES
+============================================================ */
+
+function renderTimeSeries() {
+
+  var svg =
+    document.getElementById(
+      "ts-svg"
+    );
+
+  var summary =
+    document.getElementById(
+      "ts-summary"
+    );
+
+
+  if (!svg || !summary) {
+    return;
+  }
+
+
+  var points =
+    historyData[
+      selectedAnalysisRegion
+    ] || [];
+
+
+  /*
+   * WBGT가 실제로 계산된 지점만 그래프에 표시
+   */
+
+  var validPoints =
+    points.filter(
+      function (point) {
+
+        return (
+          point.wbgt !== null &&
+          Number.isFinite(
+            Number(point.wbgt)
+          )
+        );
+
+      }
+    );
+
+
+  /*
+   * 자료가 없는 경우
+   */
+
+  if (validPoints.length === 0) {
+
+    svg.innerHTML =
+      '<foreignObject x="0" y="0" width="560" height="240">' +
+      '<div xmlns="http://www.w3.org/1999/xhtml" class="chart-empty">' +
+      '최근 24시간 동안<br />' +
+      'WBGT를 계산할 수 있는 자료가 없습니다.' +
+      '</div>' +
+      '</foreignObject>';
+
+
+    summary.innerHTML =
+      '<div class="row">' +
+      '<div class="cap">지역</div>' +
+      '<div class="val">' +
+      (
+        REGION_INFO[
+          selectedAnalysisRegion
+        ] || { name: "-" }
+      ).name +
+      "</div>" +
+      "</div>" +
+
+      '<div class="row">' +
+      '<div class="cap">자료 개수</div>' +
+      '<div class="val">0건</div>' +
+      "</div>" +
+
+      '<div class="row">' +
+      '<div class="cap">상태</div>' +
+      '<div class="val">자료 부족</div>' +
+      "</div>";
+
+
+    return;
+  }
+
+
+  /*
+   * 숫자값
+   */
+
+  var values =
+    validPoints.map(
+      function (point) {
+        return Number(
+          point.wbgt
+        );
+      }
+    );
+
+
+  var latest =
+    values[
+      values.length - 1
+    ];
+
+
+  var maximum =
+    Math.max.apply(
+      null,
+      values
+    );
+
+
+  var minimum =
+    Math.min.apply(
+      null,
+      values
+    );
+
+
+  var previous =
+    values.length >= 2
+      ? values[
+          values.length - 2
+        ]
+      : null;
+
+
+  var trend =
+    previous === null
+      ? null
+      : latest - previous;
+
+
+  var level =
+    classifyRisk(
+      latest
+    );
+
+
+  /*
+   * Summary
+   */
+
+  var summaryRows = "";
+
+
+  summaryRows +=
+    '<div class="row">' +
+    '<div class="cap">현재값</div>' +
+    '<div class="val">' +
+    latest.toFixed(1) +
+    "°C" +
+    "</div>" +
+    "</div>";
+
+
+  summaryRows +=
+    '<div class="row">' +
+    '<div class="cap">최고값 / 최저값</div>' +
+    '<div class="val">' +
+    maximum.toFixed(1) +
+    "°C / " +
+    minimum.toFixed(1) +
+    "°C" +
+    "</div>" +
+    "</div>";
+
+
+  summaryRows +=
+    '<div class="row">' +
+    '<div class="cap">직전 대비 추세</div>' +
+    '<div class="val" style="color:' +
+    (
+      trend === null
+        ? "var(--text-secondary)"
+        : trend >= 0
+          ? "#D32F2F"
+          : "#2E7D32"
+    ) +
+    '">' +
+    (
+      trend === null
+        ? "-"
+        : (
+            trend >= 0
+              ? "+"
+              : ""
+          ) +
+          trend.toFixed(1) +
+          "°C"
+    ) +
+    "</div>" +
+    "</div>";
+
+
+  summaryRows +=
+    '<div class="row">' +
+    '<div class="cap">현재 위험단계</div>' +
+    '<div class="val" style="color:' +
+    level.color +
+    '">' +
+    level.label +
+    "</div>" +
+    "</div>";
+
+
+  summary.innerHTML =
+    summaryRows;
+
+
+  /*
+   * SVG chart
+   */
+
+  var W = 560;
+  var H = 240;
+
+  var padL = 38;
+  var padR = 12;
+  var padT = 14;
+  var padB = 30;
+
+  var plotW =
+    W -
+    padL -
+    padR;
+
+  var plotH =
+    H -
+    padT -
+    padB;
+
+
+  /*
+   * 데이터 범위보다 약간 넓게 잡음
+   */
+
+  var dataMin =
+    Math.min.apply(
+      null,
+      values
+    );
+
+  var dataMax =
+    Math.max.apply(
+      null,
+      values
+    );
+
+
+  var yMin =
+    Math.floor(
+      dataMin - 2
+    );
+
+
+  var yMax =
+    Math.ceil(
+      dataMax + 2
+    );
+
+
+  if (yMax - yMin < 6) {
+
+    var center =
+      (yMax + yMin) / 2;
+
+    yMin =
+      Math.floor(
+        center - 3
+      );
+
+    yMax =
+      Math.ceil(
+        center + 3
+      );
+  }
+
+
+  function xAt(index) {
+
+    if (validPoints.length === 1) {
+      return padL +
+        plotW / 2;
+    }
+
+    return (
+      padL +
+      (
+        index /
+        (validPoints.length - 1)
+      ) *
+      plotW
+    );
+  }
+
+
+  function yAt(value) {
+
+    return (
+      padT +
+      plotH -
+      (
+        (
+          value -
+          yMin
+        ) /
+        (
+          yMax -
+          yMin
+        )
+      ) *
+      plotH
+    );
+  }
+
+
+  var svgParts = [];
+
+
+  /*
+   * 수평 격자
+   */
+
+  var gridCount = 4;
+
+
+  for (
+    var g = 0;
+    g <= gridCount;
+    g++
+  ) {
+
+    var gridY =
+      padT +
+      (
+        plotH /
+        gridCount
+      ) *
+      g;
+
+
+    svgParts.push(
+      '<line ' +
+      'x1="' +
+      padL +
+      '" ' +
+      'y1="' +
+      gridY +
+      '" ' +
+      'x2="' +
+      (W - padR) +
+      '" ' +
+      'y2="' +
+      gridY +
+      '" ' +
+      'stroke="#E5E7EB" ' +
+      'stroke-width="1"/>'
+    );
+
+
+    var gridValue =
+      yMax -
+      (
+        (
+          yMax -
+          yMin
+        ) /
+        gridCount
+      ) *
+      g;
+
+
+    svgParts.push(
+      '<text ' +
+      'x="4" ' +
+      'y="' +
+      (gridY + 3) +
+      '" ' +
+      'font-size="10" ' +
+      'fill="#9CA3AF">' +
+      gridValue.toFixed(0) +
+      "°</text>"
+    );
+  }
+
+
+  /*
+   * WBGT 위험기준선
+   */
+
+  for (
+    var r = 0;
+    r < RISK_LEVELS.length - 1;
+    r++
+  ) {
+
+    var risk =
+      RISK_LEVELS[r];
+
+
+    if (
+      risk.max >= yMin &&
+      risk.max <= yMax
+    ) {
+
+      var riskY =
+        yAt(
+          risk.max
+        );
+
+
+      svgParts.push(
+        '<line ' +
+        'x1="' +
+        padL +
+        '" ' +
+        'y1="' +
+        riskY +
+        '" ' +
+        'x2="' +
+        (W - padR) +
+        '" ' +
+        'y2="' +
+        riskY +
+        '" ' +
+        'stroke="' +
+        risk.color +
+        '" ' +
+        'stroke-width="1" ' +
+        'stroke-dasharray="4 4" ' +
+        'opacity="0.45"/>'
+      );
+    }
+  }
+
+
+  /*
+   * 시간 라벨
+   *
+   * 24개 전부 겹치지 않도록
+   * 적당한 간격으로 표시
+   */
+
+  var labelEvery =
+    validPoints.length <= 8
+      ? 1
+      : validPoints.length <= 16
+        ? 2
+        : 4;
+
+
+  for (
+    var ti = 0;
+    ti < validPoints.length;
+    ti++
+  ) {
+
+    if (
+      ti % labelEvery !== 0 &&
+      ti !== validPoints.length - 1
+    ) {
+      continue;
+    }
+
+
+    var timeText =
+      formatChartTime(
+        validPoints[ti].time
+      );
+
+
+    svgParts.push(
+      '<text ' +
+      'x="' +
+      xAt(ti) +
+      '" ' +
+      'y="' +
+      (H - 7) +
+      '" ' +
+      'font-size="10" ' +
+      'fill="#9CA3AF" ' +
+      'text-anchor="middle">' +
+      timeText +
+      "</text>"
+    );
+  }
+
+
+  /*
+   * 선
+   */
+
+  var linePoints = [];
+
+
+  for (
+    var pi = 0;
+    pi < validPoints.length;
+    pi++
+  ) {
+
+    linePoints.push(
+      xAt(pi) +
+      "," +
+      yAt(
+        Number(
+          validPoints[pi].wbgt
+        )
+      )
+    );
+  }
+
+
+  svgParts.push(
+    '<polyline ' +
+    'points="' +
+    linePoints.join(" ") +
+    '" ' +
+    'fill="none" ' +
+    'stroke="#111827" ' +
+    'stroke-width="2"/>'
+  );
+
+
+  /*
+   * 점
+   */
+
+  for (
+    var ci = 0;
+    ci < validPoints.length;
+    ci++
+  ) {
+
+    svgParts.push(
+      '<circle ' +
+      'cx="' +
+      xAt(ci) +
+      '" ' +
+      'cy="' +
+      yAt(
+        Number(
+          validPoints[ci].wbgt
+        )
+      ) +
+      '" ' +
+      'r="2.5" ' +
+      'fill="#111827" ' +
+      'style="pointer-events:none"/>'
+    );
+  }
+
+
+  /*
+   * Tooltip
+   */
+
+  for (
+    var hi = 0;
+    hi < validPoints.length;
+    hi++
+  ) {
+
+    var point =
+      validPoints[hi];
+
+
+    var px =
+      xAt(hi);
+
+
+    var py =
+      yAt(
+        Number(
+          point.wbgt
+        )
+      );
+
+
+    var tooltipW = 84;
+    var tooltipH = 40;
+
+
+    var boxX =
+      Math.max(
+        Math.min(
+          px -
+          tooltipW / 2,
+          W -
+          padR -
+          tooltipW
+        ),
+        padL
+      );
+
+
+    var boxY =
+      Math.max(
+        py -
+        tooltipH -
+        12,
+        2
+      );
+
+
+    svgParts.push(
+
+      '<g id="ts-tooltip-' +
+      hi +
+      '" ' +
+      'style="display:none;pointer-events:none">' +
+
+      '<rect ' +
+      'x="' +
+      boxX +
+      '" ' +
+      'y="' +
+      boxY +
+      '" ' +
+      'width="' +
+      tooltipW +
+      '" ' +
+      'height="' +
+      tooltipH +
+      '" ' +
+      'rx="4" ' +
+      'fill="#111827"/>' +
+
+      '<text ' +
+      'x="' +
+      (boxX + tooltipW / 2) +
+      '" ' +
+      'y="' +
+      (boxY + 15) +
+      '" ' +
+      'font-size="10" ' +
+      'fill="#D1D5DB" ' +
+      'text-anchor="middle">' +
+      formatChartTime(
+        point.time
+      ) +
+      "</text>" +
+
+      '<text ' +
+      'x="' +
+      (boxX + tooltipW / 2) +
+      '" ' +
+      'y="' +
+      (boxY + 30) +
+      '" ' +
+      'font-size="12" ' +
+      'font-weight="700" ' +
+      'fill="#FFFFFF" ' +
+      'text-anchor="middle">' +
+      "WBGT " +
+      Number(
+        point.wbgt
+      ).toFixed(1) +
+      "°C</text>" +
+
+      "</g>"
+    );
+  }
+
+
+  /*
+   * 점 위의 넓은 클릭/hover 영역
+   */
+
+  for (
+    var hi2 = 0;
+    hi2 < validPoints.length;
+    hi2++
+  ) {
+
+    svgParts.push(
+      '<circle ' +
+      'class="ts-hit" ' +
+      'data-index="' +
+      hi2 +
+      '" ' +
+      'cx="' +
+      xAt(hi2) +
+      '" ' +
+      'cy="' +
+      yAt(
+        Number(
+          validPoints[hi2].wbgt
+        )
+      ) +
+      '" ' +
+      'r="12" ' +
+      'fill="transparent" ' +
+      'style="cursor:pointer"/>'
+    );
+  }
+
+
+  svg.setAttribute(
+    "viewBox",
+    "0 0 " +
+    W +
+    " " +
+    H
+  );
+
+
+  svg.innerHTML =
+    svgParts.join("");
+
+
+  /*
+   * Tooltip 제어
+   */
+
+  function hideAllTooltips() {
+
+    for (
+      var k = 0;
+      k < validPoints.length;
+      k++
+    ) {
+
+      var element =
+        document.getElementById(
+          "ts-tooltip-" +
+          k
+        );
+
+
+      if (element) {
+        element.style.display =
+          "none";
+      }
+    }
+  }
+
+
+  function showTooltip(index) {
+
+    hideAllTooltips();
+
+
+    var element =
+      document.getElementById(
+        "ts-tooltip-" +
+        index
+      );
+
+
+    if (element) {
+
+      element.style.display =
+        "";
+    }
+  }
+
+
+  var hitElements =
+    svg.querySelectorAll(
+      ".ts-hit"
+    );
+
+
+  for (
+    var hj = 0;
+    hj < hitElements.length;
+    hj++
+  ) {
+
+    (function (element) {
+
+      var index =
+        element.getAttribute(
+          "data-index"
+        );
+
+
+      element.addEventListener(
+        "mouseenter",
+        function () {
+          showTooltip(index);
+        }
+      );
+
+
+      element.addEventListener(
+        "mouseleave",
+        function () {
+          hideAllTooltips();
+        }
+      );
+
+
+      element.addEventListener(
+        "click",
+        function (event) {
+
+          event.stopPropagation();
+
+
+          var current =
+            document.getElementById(
+              "ts-tooltip-" +
+              index
+            );
+
+
+          var isOpen =
+            current &&
+            current.style.display !==
+              "none";
+
+
+          hideAllTooltips();
+
+
+          if (
+            !isOpen &&
+            current
+          ) {
+
+            current.style.display =
+              "";
+          }
+
+        }
+      );
+
+    })(hitElements[hj]);
+  }
+
+
+  svg.addEventListener(
+    "click",
+    function () {
+      hideAllTooltips();
+    }
+  );
+}
+
+
+/* ============================================================
+   RENDER ALL
+============================================================ */
+
+function renderAll() {
+
+  renderDashboard();
+
+  renderMap();
+
+  renderDetailPanel();
+
+  renderResponseCounts();
+
+  renderPriorityList();
+
+  renderShelters();
+
+  renderRegionalTable();
+
+  renderAnalysisRegionTabs();
+
+  renderTimeSeries();
+}
+
+
+/* ============================================================
+   RESIZE
+============================================================ */
+
+window.addEventListener(
+  "resize",
+  function () {
+
+    var analysisPanel =
+      document.getElementById(
+        "tab-analysis"
+      );
+
+
+    if (
+      analysisPanel &&
+      analysisPanel.classList.contains(
+        "active"
+      )
+    ) {
+
+      renderTimeSeries();
+
+    }
+
+  }
+);
+
+
+/* ============================================================
+   INIT
+============================================================ */
+
+renderTabNav();
+
+renderShelters();
+
+setupLocationPrompt();
+
+setupEmergencyTransport();
+
+renderAnalysisRegionTabs();
+
+loadWeatherData();
+
+
+/*
+ * 발표 중에도 최신 자료를 자동으로 갱신.
+ * 5분마다 다시 조회합니다.
+ */
+
+setInterval(
+  function () {
+
+    loadWeatherData();
+
+  },
+  5 * 60 * 1000
+);
+
+</script>
+
+</body>
+</html>
