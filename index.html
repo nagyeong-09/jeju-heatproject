@@ -802,6 +802,31 @@
     flex: 1 1 700px;
     min-width: 0;
     padding: 20px 20px 8px;
+    position: relative;
+  }
+
+  .chart-tooltip {
+    position: absolute;
+    z-index: 20;
+    pointer-events: none;
+    transform: translate(-50%, calc(-100% - 10px));
+    background: rgba(17, 24, 39, 0.94);
+    color: #fff;
+    border-radius: 6px;
+    padding: 7px 9px;
+    font-size: 11px;
+    line-height: 1.45;
+    white-space: nowrap;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    opacity: 0;
+    transition: opacity .12s ease;
+  }
+
+  .chart-tooltip.show { opacity: 1; }
+
+  .leaflet-pane.leaflet-heat-blur-pane {
+    filter: blur(22px);
+    opacity: .78;
   }
 
   .ts-chart svg {
@@ -1139,14 +1164,14 @@
       <h3 class="sub-heading">위험지역 우선순위</h3>
       <div class="priority-list" id="priority-list"></div>
 
-      <h3 class="sub-heading">무더위쉼터</h3>
+      <h3 class="sub-heading">무더위쉼터 · 병원 · 보건소 지도</h3>
       <div class="location-prompt" id="location-prompt">
         <div class="msg">
           <svg class="icon" viewBox="0 0 24 24">
             <path d="m3 11 19-9-9 19-2-8-8-2Z"/>
           </svg>
           <span id="location-status-msg">
-            현재 위치를 사용하면 가까운 순으로 정렬해 보여드립니다. 위치를 허용하지 않아도 아래 지도에서 제주 전체 쉼터를 확인할 수 있습니다.
+            현재 위치를 사용하면 가까운 순으로 정렬해 보여드립니다. 위치를 허용하지 않아도 아래 지도에서 제주 전체 무더위쉼터·병원·보건소를 확인할 수 있습니다.
           </span>
         </div>
         <button class="btn-primary" id="use-location-btn">현재 위치 사용</button>
@@ -1160,7 +1185,7 @@
       </div>
 
       <div class="source-line" style="margin-top:-20px;margin-bottom:24px;">
-        행정안전부 무더위쉼터 API · 제주 전체 781개 기준
+        재난안전데이터공유플랫폼 API · 무더위쉼터·병원·보건소 연동
       </div>
 
       <h3 class="sub-heading">응급 대응 (병원 및 보건소)</h3>
@@ -1225,6 +1250,7 @@
       <div class="ts-layout">
         <div class="ts-chart">
           <svg id="ts-svg" viewBox="0 0 560 240" width="100%" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="chart-tooltip" id="ts-tooltip" role="status" aria-live="polite"></div>
           <div class="chart-note">
             그래프의 점에 마우스를 올리거나 탭하면 해당 시각의 WBGT 값을 확인할 수 있습니다.
           </div>
@@ -1298,20 +1324,13 @@ var REGION_INFO = {
   west: { name: "고산", station: "고산" }
 };
 
-// 제주 4개 권역 다각형 범위 (위험도 히트맵 구현용)
-var REGION_BOUNDS = {
-  north: [
-    [33.58, 126.40], [33.55, 126.70], [33.40, 126.65], [33.42, 126.35]
-  ],
-  south: [
-    [33.32, 126.30], [33.32, 126.80], [33.20, 126.85], [33.20, 126.25]
-  ],
-  east: [
-    [33.55, 126.70], [33.50, 126.95], [33.32, 126.95], [33.32, 126.70]
-  ],
-  west: [
-    [33.42, 126.35], [33.40, 126.35], [33.25, 126.15], [33.38, 126.15]
-  ]
+// 제주 4개 AWS 관측권역의 시각화 중심점.
+// 실제 미관측 지점의 값을 새로 만들지 않고, 각 관측값의 영향 범위만 부드럽게 표현합니다.
+var REGION_HEAT = {
+  north: { lat: 33.50, lon: 126.53, radius: 23000 },
+  south: { lat: 33.25, lon: 126.56, radius: 23000 },
+  east:  { lat: 33.40, lon: 126.86, radius: 25000 },
+  west:  { lat: 33.36, lon: 126.22, radius: 25000 }
 };
 
 var weatherData = [];
@@ -1332,7 +1351,7 @@ var resourceData = {
 var riskMap = null;
 var shelterMap = null;
 var riskLayers = {}; // 히트맵 레이어 전용
-var shelterMarkers = null;
+var resourceMarkers = null;
 
 var TABS = [
   { id: "tab-dashboard", label: "상황판", core: true },
@@ -1657,33 +1676,48 @@ function renderRiskHeatmap() {
   ensureRiskMap();
   if (!riskMap) return;
 
+  // 기존 레이어 제거
+  Object.keys(riskLayers).forEach(function (key) {
+    if (riskLayers[key]) riskMap.removeLayer(riskLayers[key]);
+  });
+  riskLayers = {};
+
+  // 전용 pane을 사용해 SVG 원형 레이어 전체에 blur를 적용합니다.
+  if (!riskMap.getPane("heatBlurPane")) {
+    var heatPane = riskMap.createPane("heatBlurPane");
+    heatPane.classList.add("leaflet-heat-blur-pane");
+    heatPane.style.zIndex = 350;
+    heatPane.style.pointerEvents = "none";
+  }
+
   REGION_ORDER.forEach(function (key) {
-    if (riskLayers[key]) {
-      riskMap.removeLayer(riskLayers[key]);
-    }
-
     var region = findRegion(key);
-    var wbgt = region ? region.wbgt : null;
-    var risk = classifyRisk(wbgt);
+    var heat = REGION_HEAT[key];
+    if (!region || !heat || region.wbgt === null || !Number.isFinite(Number(region.wbgt))) return;
 
-    // 데이터가 없거나 null이면 투명/자료부족 색상으로 칠함 (임의 추정 금지)
-    var fillColor = risk.key === "unknown" ? "#9CA3AF" : risk.color;
-    var fillOpacity = risk.key === "unknown" ? 0.2 : 0.45;
+    var risk = classifyRisk(region.wbgt);
+    var intensity = Math.max(0.28, Math.min(0.72, 0.28 + (Number(region.wbgt) - 25) * 0.045));
 
-    var polygon = L.polygon(REGION_BOUNDS[key], {
-      color: fillColor,
-      weight: 2,
-      fillColor: fillColor,
-      fillOpacity: fillOpacity
+    // 중심이 진하고 가장자리로 자연스럽게 사라지는 겹원 방식.
+    var outer = L.circle([heat.lat, heat.lon], {
+      pane: "heatBlurPane",
+      radius: heat.radius,
+      stroke: false,
+      fillColor: risk.color,
+      fillOpacity: intensity * 0.38,
+      interactive: false
     }).addTo(riskMap);
 
-    polygon.on("click", function () {
-      selectedRegionId = key;
-      renderMapSelectors();
-      renderDetailPanel();
-    });
+    var inner = L.circle([heat.lat, heat.lon], {
+      pane: "heatBlurPane",
+      radius: heat.radius * 0.58,
+      stroke: false,
+      fillColor: risk.color,
+      fillOpacity: intensity,
+      interactive: false
+    }).addTo(riskMap);
 
-    riskLayers[key] = polygon;
+    riskLayers[key] = L.layerGroup([outer, inner]);
   });
 }
 
@@ -1823,8 +1857,17 @@ function setupLocationPrompt() {
   });
 }
 
+function escapeHtml(value) {
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function createResourceIcon(type) {
-  var color = type === "shelter" ? "#F9A825" : "#1565C0";
+  var color = type === "shelter" ? "#F9A825" : (type === "hospital" ? "#D32F2F" : "#1565C0");
   return L.divIcon({
     className: "",
     html: '<div style="width:12px;height:12px;border-radius:999px;background:' + color + ';border:2px solid #fff;"></div>',
@@ -1839,25 +1882,32 @@ function ensureShelterMap() {
   if (!shelterMap) {
     shelterMap = L.map(el).setView([33.38, 126.55], 10);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(shelterMap);
-    shelterMarkers = L.layerGroup().addTo(shelterMap);
+    resourceMarkers = L.layerGroup().addTo(shelterMap);
   }
   setTimeout(function () { shelterMap.invalidateSize(); }, 50);
 }
 
 function renderShelterMap() {
   ensureShelterMap();
-  if (!shelterMap || !shelterMarkers) return;
-  shelterMarkers.clearLayers();
+  if (!shelterMap || !resourceMarkers) return;
+  resourceMarkers.clearLayers();
 
-  var rows = resourceData.shelter || [];
-  for (var i = 0; i < rows.length; i++) {
-    var item = rows[i];
-    if (Number.isFinite(item.lat) && Number.isFinite(item.lon)) {
-      L.marker([item.lat, item.lon], { icon: createResourceIcon("shelter") })
-        .bindPopup("<b>" + item.name + "</b><br>" + (item.address || ""))
-        .addTo(shelterMarkers);
-    }
-  }
+  var groups = [
+    { type: "shelter", label: "무더위쉼터", rows: resourceData.shelter || [] },
+    { type: "hospital", label: "병원", rows: resourceData.hospital || [] },
+    { type: "healthCenter", label: "보건소", rows: resourceData.healthCenter || [] }
+  ];
+
+  groups.forEach(function (group) {
+    group.rows.forEach(function (item) {
+      if (Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lon))) {
+        var phone = item.phone ? "<br>☎ " + escapeHtml(item.phone) : "";
+        L.marker([Number(item.lat), Number(item.lon)], { icon: createResourceIcon(group.type) })
+          .bindPopup("<b>" + escapeHtml(item.name) + "</b><br>" + group.label + "<br>" + escapeHtml(item.address || "") + phone)
+          .addTo(resourceMarkers);
+      }
+    });
+  });
 }
 
 function renderShelterListFromApi() {
@@ -2005,6 +2055,7 @@ function renderAnalysisRegionTabs() {
 function renderTimeSeries() {
   var svg = document.getElementById("ts-svg");
   var summary = document.getElementById("ts-summary");
+  var tooltip = document.getElementById("ts-tooltip");
   if (!svg || !summary) return;
 
   var points = historyData[selectedAnalysisRegion] || [];
@@ -2013,6 +2064,7 @@ function renderTimeSeries() {
   if (validPoints.length === 0) {
     svg.innerHTML = '<foreignObject x="0" y="0" width="560" height="240"><div xmlns="http://www.w3.org/1999/xhtml" class="chart-empty">최근 24시간 동안 WBGT를 계산할 수 있는 자료가 없습니다.</div></foreignObject>';
     summary.innerHTML = '<div class="row"><div class="cap">지역</div><div class="val">' + (REGION_INFO[selectedAnalysisRegion] || {}).name + '</div></div><div class="row"><div class="cap">상태</div><div class="val">자료 부족</div></div>';
+    if (tooltip) tooltip.classList.remove("show");
     return;
   }
 
@@ -2027,13 +2079,17 @@ function renderTimeSeries() {
   summary.innerHTML =
     '<div class="row"><div class="cap">현재값</div><div class="val">' + latest.toFixed(1) + '°C</div></div>' +
     '<div class="row"><div class="cap">최고 / 최저</div><div class="val">' + maximum.toFixed(1) + '°C / ' + minimum.toFixed(1) + '°C</div></div>' +
-    '<div class="row"><div class="cap">직전 대비</div><div class="val" style="color:' + (trend >= 0 ? '#D32F2F' : '#2E7D32') + '">' + (trend === null ? "-" : (trend >= 0 ? "+" : "") + trend.toFixed(1) + '°C') + '</div></div>' +
+    '<div class="row"><div class="cap">직전 대비</div><div class="val" style="color:' + (trend !== null && trend >= 0 ? '#D32F2F' : '#2E7D32') + '">' + (trend === null ? "-" : (trend >= 0 ? "+" : "") + trend.toFixed(1) + '°C') + '</div></div>' +
     '<div class="row"><div class="cap">위험단계</div><div class="val" style="color:' + level.color + '">' + level.label + '</div></div>';
 
   var W = 560, H = 240, padL = 38, padR = 12, padT = 14, padB = 30;
   var plotW = W - padL - padR, plotH = H - padT - padB;
   var yMin = Math.floor(minimum - 2), yMax = Math.ceil(maximum + 2);
-  if (yMax - yMin < 6) { yMin = Math.floor((yMax + yMin) / 2 - 3); yMax = Math.ceil((yMax + yMin) / 2 + 3); }
+  if (yMax - yMin < 6) {
+    var mid = (yMax + yMin) / 2;
+    yMin = Math.floor(mid - 3);
+    yMax = Math.ceil(mid + 3);
+  }
 
   function xAt(i) { return validPoints.length === 1 ? padL + plotW / 2 : padL + (i / (validPoints.length - 1)) * plotW; }
   function yAt(val) { return padT + plotH - ((val - yMin) / (yMax - yMin)) * plotH; }
@@ -2046,17 +2102,46 @@ function renderTimeSeries() {
   }
 
   var linePts = [];
-  for (var pi = 0; pi < validPoints.length; pi++) {
-    linePts.push(xAt(pi) + "," + yAt(validPoints[pi].wbgt));
-  }
+  for (var pi = 0; pi < validPoints.length; pi++) linePts.push(xAt(pi) + "," + yAt(validPoints[pi].wbgt));
   svgParts.push('<polyline points="' + linePts.join(" ") + '" fill="none" stroke="#111827" stroke-width="2"/>');
 
   for (var ci = 0; ci < validPoints.length; ci++) {
-    svgParts.push('<circle cx="' + xAt(ci) + '" cy="' + yAt(validPoints[ci].wbgt) + '" r="2.5" fill="#111827"/>');
+    var px = xAt(ci), py = yAt(validPoints[ci].wbgt);
+    svgParts.push('<circle cx="' + px + '" cy="' + py + '" r="3" fill="#111827" pointer-events="none"/>');
+    // 눈에 보이는 점보다 넓은 투명 hit-area를 두어 hover/touch를 안정적으로 받습니다.
+    svgParts.push('<circle class="ts-hit" data-index="' + ci + '" cx="' + px + '" cy="' + py + '" r="11" fill="transparent" style="cursor:pointer" tabindex="0"/>');
   }
 
   svg.setAttribute("viewBox", "0 0 " + W + " " + H);
   svg.innerHTML = svgParts.join("");
+
+  function showTooltip(index, target) {
+    if (!tooltip) return;
+    var p = validPoints[index];
+    if (!p) return;
+    var chart = svg.parentElement;
+    var chartRect = chart.getBoundingClientRect();
+    var targetRect = target.getBoundingClientRect();
+    var timeLabel = formatObservedTime(p.time);
+    tooltip.innerHTML = '<strong>' + Number(p.wbgt).toFixed(1) + '°C</strong><br>' + escapeHtml(timeLabel);
+    tooltip.style.left = (targetRect.left - chartRect.left + targetRect.width / 2) + 'px';
+    tooltip.style.top = (targetRect.top - chartRect.top + targetRect.height / 2) + 'px';
+    tooltip.classList.add("show");
+  }
+
+  function hideTooltip() {
+    if (tooltip) tooltip.classList.remove("show");
+  }
+
+  var hits = svg.querySelectorAll(".ts-hit");
+  for (var hi = 0; hi < hits.length; hi++) {
+    hits[hi].addEventListener("mouseenter", function (e) { showTooltip(Number(e.currentTarget.dataset.index), e.currentTarget); });
+    hits[hi].addEventListener("focus", function (e) { showTooltip(Number(e.currentTarget.dataset.index), e.currentTarget); });
+    hits[hi].addEventListener("pointerdown", function (e) { showTooltip(Number(e.currentTarget.dataset.index), e.currentTarget); });
+    hits[hi].addEventListener("mouseleave", hideTooltip);
+    hits[hi].addEventListener("blur", hideTooltip);
+  }
+  svg.addEventListener("mouseleave", hideTooltip, { once: true });
 }
 
 function renderAll() {
