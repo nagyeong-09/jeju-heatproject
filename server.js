@@ -25,7 +25,6 @@ app.use(express.static(__dirname));
 
 const KMA_BASE_URL =
   "https://apihub.kma.go.kr/api/typ01/url/kma_sfctm2.php";
-
 const SAFETY_BASE_URL = "https://www.safetydata.go.kr";
 
 // 제주 4개 관측지점 (AWS 데이터 연동 유지)
@@ -36,21 +35,18 @@ const STATIONS = {
     stationName: "제주",
     stationId: 184,
   },
-
   west: {
     regionKey: "west",
     region: "고산",
     stationName: "고산",
     stationId: 185,
   },
-
   east: {
     regionKey: "east",
     region: "성산",
     stationName: "성산",
     stationId: 188,
   },
-
   south: {
     regionKey: "south",
     region: "서귀포",
@@ -59,9 +55,7 @@ const STATIONS = {
   },
 };
 
-const STATION_IDS = Object.values(STATIONS).map(
-  (station) => station.stationId
-);
+const STATION_IDS = Object.values(STATIONS).map((s) => s.stationId);
 
 // --------------------------------------------------
 // 유틸
@@ -96,15 +90,11 @@ function formatDisplayTime(date) {
 }
 
 function toNumber(value) {
-  if (value === undefined || value === null) {
-    return null;
-  }
+  if (value === undefined || value === null) return null;
 
   const n = Number(String(value).trim());
 
-  if (!Number.isFinite(n)) {
-    return null;
-  }
+  if (!Number.isFinite(n)) return null;
 
   // KMA 결측값
   if (n === -9 || n === -99 || n === -999 || n === -999.0) {
@@ -131,9 +121,7 @@ async function fetchKma(tm) {
   console.log("KMA AWS 요청:", tm);
 
   const response = await fetch(url);
-
   const buffer = await response.arrayBuffer();
-
   const text = new TextDecoder("euc-kr").decode(buffer);
 
   if (!response.ok) {
@@ -161,15 +149,12 @@ async function fetchKma(tm) {
 
 function parseKmaRows(text) {
   const rows = [];
-
   const lines = text.split(/\r?\n/);
 
   for (const rawLine of lines) {
     const line = rawLine.trim();
 
-    if (!line) {
-      continue;
-    }
+    if (!line) continue;
 
     if (
       line.startsWith("#") ||
@@ -181,32 +166,25 @@ function parseKmaRows(text) {
 
     const parts = line.split(/\s+/);
 
-    if (parts.length < 35) {
-      continue;
-    }
+    if (parts.length < 35) continue;
 
     const time = parts[0];
-
     const stationId = Number(parts[1]);
 
-    if (!Number.isFinite(stationId)) {
-      continue;
-    }
+    if (!Number.isFinite(stationId)) continue;
 
     const station = Object.values(STATIONS).find(
       (s) => s.stationId === stationId
     );
 
-    if (!station) {
-      continue;
-    }
+    if (!station) continue;
 
     const wind = toNumber(parts[3]);
     const temp = toNumber(parts[11]);
     const humidity = toNumber(parts[13]);
     const solar = toNumber(parts[34]);
 
-    // 성산 station 188의 SI 값 디버깅 로그
+    // 성산 station 188의 SI 값 디버깅 로그 유지
     if (stationId === 188) {
       console.log(
         `[디버그] 성산(188) SI: ${solar}, TA: ${temp}, HM: ${humidity}, WS: ${wind}`
@@ -245,20 +223,14 @@ function calculateWetBulb(temp, rh) {
     return null;
   }
 
-  if (
-    rh < 5 ||
-    rh > 99 ||
-    temp < -20 ||
-    temp > 50
-  ) {
+  if (rh < 5 || rh > 99 || temp < -20 || temp > 50) {
     return null;
   }
 
   const tw =
-    temp *
-      Math.atan(
-        0.151977 * Math.sqrt(rh + 8.313659)
-      ) +
+    temp * Math.atan(
+      0.151977 * Math.sqrt(rh + 8.313659)
+    ) +
     Math.atan(temp + rh) -
     Math.atan(rh - 1.676331) +
     0.00391838 *
@@ -293,9 +265,7 @@ function calculateWBGT(temp, rh, wind, solar) {
 
   const tw = calculateWetBulb(temp, rh);
 
-  if (tw === null) {
-    return null;
-  }
+  if (tw === null) return null;
 
   const tg =
     0.926 * temp -
@@ -312,15 +282,8 @@ function calculateWBGT(temp, rh, wind, solar) {
   return Number(wbgt.toFixed(1));
 }
 
-// --------------------------------------------------
-// 위험도
-// --------------------------------------------------
-
 function getRisk(wbgt) {
-  if (
-    wbgt === null ||
-    !Number.isFinite(wbgt)
-  ) {
+  if (wbgt === null || !Number.isFinite(wbgt)) {
     return {
       level: "자료 부족",
       code: "unknown",
@@ -361,10 +324,6 @@ function getRisk(wbgt) {
   };
 }
 
-// --------------------------------------------------
-// 기상 데이터 생성
-// --------------------------------------------------
-
 function makeWeatherItem(row) {
   const wbgt = calculateWBGT(
     row.temp,
@@ -381,16 +340,12 @@ function makeWeatherItem(row) {
     name: row.region,
     stationName: row.stationName,
     stationId: row.stationId,
-
     observedAt: row.time,
-
     wbgt,
-
     temp: row.temp,
     humidity: row.humidity,
     wind: row.wind,
     solar: row.solar,
-
     risk: risk.level,
     riskLevel: risk.level,
     riskCode: risk.code,
@@ -402,7 +357,6 @@ async function fetchAtTime(date) {
 
   try {
     const text = await fetchKma(tm);
-
     const rows = parseKmaRows(text);
 
     return rows.map(makeWeatherItem);
@@ -416,10 +370,6 @@ async function fetchAtTime(date) {
   }
 }
 
-// --------------------------------------------------
-// 최신 데이터
-// --------------------------------------------------
-
 async function fetchLatest() {
   const now = new Date();
 
@@ -427,7 +377,6 @@ async function fetchLatest() {
     const target = new Date(now);
 
     target.setMinutes(0, 0, 0);
-
     target.setHours(
       target.getHours() - i
     );
@@ -436,9 +385,7 @@ async function fetchLatest() {
 
     if (rows.length > 0) {
       console.log(
-        `✅ 최신 관측자료(AWS) 확보: ${formatDisplayTime(
-          target
-        )}`
+        `✅ 최신 관측자료(AWS) 확보: ${formatDisplayTime(target)}`
       );
 
       return rows;
@@ -452,25 +399,19 @@ async function fetchLatest() {
   return [];
 }
 
-// --------------------------------------------------
-// 24시간 이력 캐시
-// --------------------------------------------------
-
 let historyCache = {
   timestamp: 0,
   data: null,
 };
 
-const HISTORY_CACHE_MS =
-  5 * 60 * 1000;
+const HISTORY_CACHE_MS = 5 * 60 * 1000;
 
 async function fetchHistory() {
   const nowMs = Date.now();
 
   if (
     historyCache.data &&
-    nowMs - historyCache.timestamp <
-      HISTORY_CACHE_MS
+    nowMs - historyCache.timestamp < HISTORY_CACHE_MS
   ) {
     return historyCache.data;
   }
@@ -493,8 +434,7 @@ async function fetchHistory() {
       target.getHours() - i
     );
 
-    const rows =
-      await fetchAtTime(target);
+    const rows = await fetchAtTime(target);
 
     for (const item of rows) {
       if (history[item.regionKey]) {
@@ -504,11 +444,10 @@ async function fetchHistory() {
   }
 
   for (const key of Object.keys(history)) {
-    history[key].sort(
-      (a, b) =>
-        String(a.observedAt).localeCompare(
-          String(b.observedAt)
-        )
+    history[key].sort((a, b) =>
+      String(a.observedAt).localeCompare(
+        String(b.observedAt)
+      )
     );
   }
 
@@ -521,8 +460,7 @@ async function fetchHistory() {
 }
 
 // --------------------------------------------------
-// 안전데이터 API
-// 무더위쉼터 / 병원 / 보건소
+// 안전데이터 API (쉼터, 병원, 보건소)
 // --------------------------------------------------
 
 function parseCoordinate(value) {
@@ -543,8 +481,6 @@ function parseCoordinate(value) {
     : null;
 }
 
-// API마다 좌표 필드 이름이 다를 수 있으므로
-// 여러 필드를 순서대로 확인
 function extractLatLon(item) {
   const latCandidates = [
     item.HSPTL_LAT,
@@ -575,99 +511,124 @@ function extractLatLon(item) {
   const lat =
     latCandidates
       .map(parseCoordinate)
-      .find(
-        (v) => v !== null
-      ) ?? null;
+      .find((v) => v !== null) ?? null;
 
   const lon =
     lonCandidates
       .map(parseCoordinate)
-      .find(
-        (v) => v !== null
-      ) ?? null;
-
-  // 제주 지도에 표시할 수 있는
-  // WGS84 좌표 범위만 통과
-  const validLat =
-    lat !== null &&
-    lat >= 33.0 &&
-    lat <= 34.0;
-
-  const validLon =
-    lon !== null &&
-    lon >= 125.9 &&
-    lon <= 127.1;
+      .find((v) => v !== null) ?? null;
 
   return {
-    lat: validLat ? lat : null,
-    lon: validLon ? lon : null,
+    lat:
+      lat !== null &&
+      lat >= 33.0 &&
+      lat <= 34.0
+        ? lat
+        : null,
+
+    lon:
+      lon !== null &&
+      lon >= 125.9 &&
+      lon <= 127.1
+        ? lon
+        : null,
   };
 }
 
-// 제주 데이터만 사용
-function isJeju(item) {
-  const str =
-    JSON.stringify(item);
-
+function isJejuCoordinate(lat, lon) {
   return (
-    str.includes("제주") ||
-    str.includes(
-      "제주특별자치도"
-    )
+    Number.isFinite(lat) &&
+    Number.isFinite(lon) &&
+    lat >= 33.0 &&
+    lat <= 34.0 &&
+    lon >= 125.9 &&
+    lon <= 127.1
   );
 }
 
-// --------------------------------------------------
-// 안전데이터 API 호출
-// --------------------------------------------------
-
 async function fetchSafetyApiData(
   endpoint,
-  apiKey
+  apiKey,
+  extraParams = {}
 ) {
   if (!apiKey) {
-    console.warn(
-      `⚠️ Key not found for endpoint: ${endpoint}`
+    throw new Error(
+      `API 키가 없습니다: ${endpoint}`
     );
-
-    return [];
   }
 
   let allRows = [];
-
   let pageNo = 1;
 
   const numOfRows = 1000;
+  const maxPages = 100;
 
-  while (pageNo <= 5) {
+  while (pageNo <= maxPages) {
+    const params = new URLSearchParams({
+      serviceKey: apiKey,
+      returnType: "json",
+      pageNo: String(pageNo),
+      numOfRows: String(numOfRows),
+      ...extraParams,
+    });
+
     const url =
-      `${SAFETY_BASE_URL}${endpoint}` +
-      `?serviceKey=${encodeURIComponent(
-        apiKey
-      )}` +
-      `&pageNo=${pageNo}` +
-      `&numOfRows=${numOfRows}` +
-      `&type=json` +
-      `&returnType=json`;
+      `${SAFETY_BASE_URL}${endpoint}?${params.toString()}`;
 
     try {
-      const response =
-        await fetch(url);
+      const response = await fetch(url);
+      const rawText = await response.text();
 
       if (!response.ok) {
-        console.error(
-          `안전데이터 API HTTP 오류: ${endpoint} / ${response.status}`
+        throw new Error(
+          `HTTP ${response.status}: ${rawText.slice(
+            0,
+            300
+          )}`
         );
-
-        break;
       }
 
-      const json =
-        await response.json();
+      let json;
 
-      // 안전데이터 플랫폼은 API마다
-      // 응답 구조가 조금씩 다를 수 있으므로
-      // 여러 구조를 모두 검사
+      try {
+        json = JSON.parse(rawText);
+      } catch {
+        throw new Error(
+          `JSON 파싱 실패: ${rawText.slice(
+            0,
+            300
+          )}`
+        );
+      }
+
+      const header =
+        json?.cmmMsgHeader ||
+        json?.response?.header ||
+        json?.header;
+
+      const returnAuthMsg =
+        header?.returnAuthMsg;
+
+      const resultCode =
+        header?.returnReasonCode ||
+        header?.resultCode;
+
+      if (
+        returnAuthMsg ||
+        (
+          resultCode &&
+          String(resultCode) !== "0"
+        )
+      ) {
+        throw new Error(
+          `안전데이터 API 오류 ${
+            resultCode || ""
+          } ${
+            returnAuthMsg || ""
+          }`.trim()
+        );
+      }
+
       let items = [];
 
       const candidates = [
@@ -679,21 +640,15 @@ async function fetchSafetyApiData(
         json,
       ];
 
-      for (
-        const candidate of candidates
-      ) {
-        if (
-          Array.isArray(candidate)
-        ) {
+      for (const candidate of candidates) {
+        if (Array.isArray(candidate)) {
           items = candidate;
           break;
         }
 
         if (
           candidate &&
-          Array.isArray(
-            candidate.item
-          )
+          Array.isArray(candidate.item)
         ) {
           items = candidate.item;
           break;
@@ -701,9 +656,7 @@ async function fetchSafetyApiData(
 
         if (
           candidate &&
-          Array.isArray(
-            candidate.items
-          )
+          Array.isArray(candidate.items)
         ) {
           items = candidate.items;
           break;
@@ -712,61 +665,130 @@ async function fetchSafetyApiData(
         if (
           candidate &&
           candidate.items &&
-          Array.isArray(
-            candidate.items.item
-          )
+          Array.isArray(candidate.items.item)
         ) {
-          items =
-            candidate.items.item;
-
+          items = candidate.items.item;
           break;
         }
       }
 
-      if (
-        !items ||
-        items.length === 0
-      ) {
+      if (!items.length) {
         break;
       }
 
-      allRows =
-        allRows.concat(items);
+      allRows.push(...items);
 
-      if (
-        items.length <
-        numOfRows
-      ) {
+      if (items.length < numOfRows) {
         break;
       }
 
       pageNo++;
     } catch (err) {
       console.error(
-        `안전데이터 API Call Failed (${endpoint}):`,
+        `❌ 안전데이터 API 실패 [${endpoint}] page=${pageNo}:`,
         err.message
       );
 
-      break;
+      throw err;
     }
   }
 
-  return allRows.filter(
-    isJeju
-  );
+  return allRows;
+}
+
+// 행정안전부 병의원 POI
+// 종합병원/병의원/요양병원/치과병의원/보건소를 함께 제공합니다.
+function mapMedicalResource(item) {
+  const { lat, lon } =
+    extractLatLon(item);
+
+  const name =
+    item.INST_NM ||
+    item.DUTYNAME ||
+    item.NAME ||
+    "명칭 없음";
+
+  const address =
+    item.ADDR ||
+    item.DUTYADDR ||
+    item.ADRES ||
+    "";
+
+  const phone =
+    item.RPRS_TELNO ||
+    item.EMRO_TELNO ||
+    item.DUTYTEL1 ||
+    item.TEL_NO ||
+    item.TEL ||
+    "";
+
+  const classification = [
+    item.HSPTL_CLSF_NM,
+    item.FIAI_MDLCR_INST_CD_NM,
+    name,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const isHealthCenter =
+    classification.includes("보건소");
+
+  return {
+    type: isHealthCenter
+      ? "healthCenter"
+      : "hospital",
+    name,
+    address,
+    phone,
+    lat,
+    lon,
+  };
+}
+
+function mapShelterResource(item) {
+  const { lat, lon } =
+    extractLatLon(item);
+
+  return {
+    type: "shelter",
+
+    name:
+      item.REARE_NM ||
+      item.SHELTER_NM ||
+      item.FCLT_NM ||
+      item.NAME ||
+      "명칭 없음",
+
+    address:
+      item.RONA_DADDR ||
+      item.REFINE_ROADNM_ADDR ||
+      item.ADDR ||
+      item.SHELTER_ADDR ||
+      "",
+
+    phone:
+      item.TEL_NO ||
+      item.TEL ||
+      item.PHONE ||
+      "",
+
+    lat,
+    lon,
+
+    shelterType:
+      item.SHLT_SE_NM || "",
+  };
 }
 
 // --------------------------------------------------
 // ROUTING
 // --------------------------------------------------
 
-// 기상 데이터
 app.get(
   "/api/weather",
   async (req, res) => {
     try {
-      const requestedAt =
-        new Date();
+      const requestedAt = new Date();
 
       const current =
         await fetchLatest();
@@ -777,11 +799,6 @@ app.get(
         history =
           await fetchHistory();
       } catch (error) {
-        console.error(
-          "기상 이력 데이터 오류:",
-          error.message
-        );
-
         history = {
           north: [],
           south: [],
@@ -800,44 +817,28 @@ app.get(
 
         updatedAt:
           current.length > 0
-            ? current[0]
-                .observedAt
+            ? current[0].observedAt
             : formatKmaTime(
                 requestedAt
               ),
 
-        source:
-          "AWS 관측자료",
-
-        model:
-          "KMA2006",
+        source: "AWS 관측자료",
+        model: "KMA2006",
 
         data: current,
-
         regions: current,
-
         history,
       });
     } catch (error) {
-      console.error(
-        "weather API 오류:",
-        error
-      );
-
       res.status(500).json({
         success: false,
-        message:
-          error.message,
+        message: error.message,
       });
     }
   }
 );
 
-// --------------------------------------------------
-// 안전자원 API
-// 병원 / 보건소 / 무더위쉼터
-// --------------------------------------------------
-
+// 안전자원 (쉼터/병원/보건소) API
 app.get(
   "/api/resources",
   async (req, res) => {
@@ -845,212 +846,137 @@ app.get(
       "🏥 안전자원 API 요청 수신"
     );
 
+    const response = {
+      success: true,
+      hospital: [],
+      healthCenter: [],
+      shelter: [],
+      shelterTotalDisplay: 781,
+      errors: [],
+    };
+
+    // 병원 + 보건소
+    // 공식 병의원 POI API 하나에서 함께 받음
     try {
-      const results =
-        await Promise.allSettled([
-          // 병원
-          fetchSafetyApiData(
-            "/V2/api/DSSP-IF-10840",
-            HOSPITAL_API_KEY
-          ),
-
-          // 보건소
-          fetchSafetyApiData(
-            "/V2/api/DSSP-IF-20535",
+      const medicalRaw =
+        await fetchSafetyApiData(
+          "/V2/api/DSSP-IF-00128",
+          HOSPITAL_API_KEY ||
             HEALTH_CENTER_API_KEY
-          ),
-
-          // 무더위쉼터
-          fetchSafetyApiData(
-            "/V2/api/DSSP-IF-10942",
-            SHELTER_API_KEY
-          ),
-        ]);
-
-      const hospitalsRaw =
-        results[0].status ===
-        "fulfilled"
-          ? results[0].value
-          : [];
-
-      const healthCentersRaw =
-        results[1].status ===
-        "fulfilled"
-          ? results[1].value
-          : [];
-
-      const sheltersRaw =
-        results[2].status ===
-        "fulfilled"
-          ? results[2].value
-          : [];
-
-      // API별 필드명이 다를 수 있으므로
-      // 여러 필드에서 이름/주소/전화번호 확인
-      const mapResource = (
-        item,
-        type
-      ) => {
-        const {
-          lat,
-          lon,
-        } = extractLatLon(
-          item
         );
 
-        return {
-          type,
-
-          name:
-            item.DUTYNAME ||
-            item.INST_NM ||
-            item.RST_NM ||
-            item.SHELTER_NM ||
-            item.FCLT_NM ||
-            item.FACLT_NM ||
-            item.NAME ||
-            "명칭 없음",
-
-          address:
-            item.DUTYADDR ||
-            item.REFINE_ROADNM_ADDR ||
-            item.ROAD_NM_ADDR ||
-            item.ADDR ||
-            item.SHELTER_ADDR ||
-            item.ADRES ||
-            "",
-
-          phone:
-            item.DUTYTEL1 ||
-            item.TEL_NO ||
-            item.TEL ||
-            item.PHONE ||
-            "",
-
-          lat,
-          lon,
-        };
-      };
-
-      const hospital =
-        hospitalsRaw.map(
-          (item) =>
-            mapResource(
-              item,
-              "hospital"
+      const medicalJeju =
+        medicalRaw
+          .map(mapMedicalResource)
+          .filter((item) =>
+            isJejuCoordinate(
+              item.lat,
+              item.lon
             )
+          );
+
+      response.hospital =
+        medicalJeju.filter(
+          (item) =>
+            item.type === "hospital"
         );
 
-      const healthCenter =
-        healthCentersRaw.map(
+      response.healthCenter =
+        medicalJeju.filter(
           (item) =>
-            mapResource(
-              item,
-              "healthCenter"
-            )
-        );
-
-      const shelter =
-        sheltersRaw.map(
-          (item) =>
-            mapResource(
-              item,
-              "shelter"
-            )
+            item.type ===
+            "healthCenter"
         );
 
       console.log(
-        `📊 조회 수치 - 병원: ${hospital.length}, 보건소: ${healthCenter.length}, 쉼터: ${shelter.length}`
+        `🏥 병의원 POI 원본: ${medicalRaw.length}, 제주 병원: ${response.hospital.length}, 제주 보건소: ${response.healthCenter.length}`
       );
-
-      res.json({
-        success: true,
-
-        // 기존 화면의 표시값 유지
-        shelterTotalDisplay: 781,
-
-        hospital,
-
-        healthCenter,
-
-        shelter,
-      });
     } catch (error) {
       console.error(
-        "안전자원 API 오류:",
-        error
+        "❌ 병원/보건소 API 오류:",
+        error.message
       );
 
-      res.status(500).json({
-        success: false,
-        message:
-          error.message,
-        hospital: [],
-        healthCenter: [],
-        shelter: [],
-      });
+      response.errors.push(
+        `병원/보건소: ${error.message}`
+      );
     }
+
+    // 무더위쉼터
+    try {
+      const shelterRaw =
+        await fetchSafetyApiData(
+          "/V2/api/DSSP-IF-10942",
+          SHELTER_API_KEY
+        );
+
+      response.shelter =
+        shelterRaw
+          .map(mapShelterResource)
+          .filter((item) =>
+            isJejuCoordinate(
+              item.lat,
+              item.lon
+            )
+          );
+
+      console.log(
+        `🏠 무더위쉼터 원본: ${shelterRaw.length}, 제주 쉼터: ${response.shelter.length}`
+      );
+    } catch (error) {
+      console.error(
+        "❌ 무더위쉼터 API 오류:",
+        error.message
+      );
+
+      response.errors.push(
+        `무더위쉼터: ${error.message}`
+      );
+    }
+
+    console.log(
+      `📊 최종 조회 수치 - 병원: ${response.hospital.length}, 보건소: ${response.healthCenter.length}, 쉼터: ${response.shelter.length}`
+    );
+
+    res.json(response);
   }
 );
-
-// --------------------------------------------------
-// 서버 상태 확인
-// --------------------------------------------------
 
 app.get(
   "/api/health",
   (req, res) => {
     res.json({
       success: true,
-
-      server:
-        "JEJU HEAT GUARD",
-
-      status:
-        "running",
-
-      time:
-        new Date().toISOString(),
+      server: "JEJU HEAT GUARD",
+      status: "running",
+      time: new Date().toISOString(),
     });
   }
 );
-
-// --------------------------------------------------
-// 메인 페이지
-// --------------------------------------------------
 
 app.get(
   "/",
   (req, res) => {
     res.sendFile(
-      __dirname +
-        "/index.html"
+      __dirname + "/index.html"
     );
   }
 );
-
-// --------------------------------------------------
-// 서버 시작
-// --------------------------------------------------
 
 app.listen(
   PORT,
   "0.0.0.0",
   () => {
     console.log("");
-
     console.log(
       "========================================"
     );
-
     console.log(
       "🔥 JEJU HEAT GUARD SERVER (AWS Model: KMA2006)"
     );
-
     console.log(
       `🌐 http://localhost:${PORT}`
     );
-
     console.log(
       "========================================"
     );
