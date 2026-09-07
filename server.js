@@ -187,7 +187,7 @@ function parseKmaRows(text) {
     const wind = toNumber(parts[3]);
     const temp = toNumber(parts[11]);
     const humidity = toNumber(parts[13]);
-    const solar = toNumber(parts[34]);
+    const solar = toNumber(parts[33]);
 
     // 성산 station 188의 SI 값 디버깅 로그 유지
     if (stationId === 188) {
@@ -886,7 +886,6 @@ app.get(
       hospital: [],
       healthCenter: [],
       shelter: [],
-      shelterTotalDisplay: 781,
       errors: [],
     };
 
@@ -981,6 +980,7 @@ app.get(
               item.lon
             )
           );
+      response.shelterCount = response.shelter.length;
 
       console.log(
         `🏠 무더위쉼터 원본: ${shelterRaw.length}, 제주 쉼터: ${response.shelter.length}`

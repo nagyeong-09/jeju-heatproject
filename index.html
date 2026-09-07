@@ -730,6 +730,22 @@
     overflow-y: auto;
   }
 
+  .shelter-count-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 14px 18px;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.shelter-count-header .count {
+  font-size: 18px;
+  margin-left: 6px;
+}
+
   .shelter-list .item {
     padding: 14px 18px;
     border-top: 1px solid var(--border);
@@ -1147,18 +1163,26 @@
       </div>
 
       <div class="risk-count-row">
-        <div class="risk-count-cell">
-          <div class="cap">주의 이상 지역</div>
-          <div class="val" id="count-caution-up">-</div>
+       <div class="risk-count-cell">
+         <div class="cap">주의 이상 지역</div>
+         <div class="val" id="count-caution-up">-</div>
         </div>
-        <div class="risk-count-cell">
-          <div class="cap">엄중경계 이상</div>
+
+       <div class="risk-count-cell">
+         <div class="cap">엄중경계 이상</div>
           <div class="val" id="count-severe-up">-</div>
-        </div>
-        <div class="risk-count-cell">
-          <div class="cap">위험</div>
+       </div>
+
+       <div class="risk-count-cell">
+         <div class="cap">위험</div>
           <div class="val" id="count-danger">-</div>
         </div>
+
+       <!-- 무더위쉼터 개수 추가 -->
+       <div class="risk-count-cell">
+          <div class="cap">제주 무더위쉼터</div>
+         <div class="val" id="count-shelter">-</div>
+       </div>
       </div>
 
       <h3 class="sub-heading">위험지역 우선순위</h3>
@@ -1345,7 +1369,7 @@ var resourceData = {
   hospital: [],
   healthCenter: [],
   shelter: [],
-  shelterTotalDisplay: 781
+  shelterTotalDisplay: 0
 };
 
 var riskMap = null;
@@ -1919,30 +1943,67 @@ function renderShelterListFromApi() {
   if (userCoords) {
     rows.forEach(function (item) {
       if (item.lat && item.lon) {
-        item.dist = calculateHaversineDistance(userCoords.lat, userCoords.lon, item.lat, item.lon);
+        item.dist = calculateHaversineDistance(
+          userCoords.lat,
+          userCoords.lon,
+          item.lat,
+          item.lon
+        );
       } else {
         item.dist = Infinity;
       }
     });
-    rows.sort(function (a, b) { return a.dist - b.dist; });
+
+    rows.sort(function (a, b) {
+      return a.dist - b.dist;
+    });
   }
 
+  // 무더위쉼터 전체 개수
+  var shelterCount =
+    Number(resourceData.shelterCount) || rows.length;
+
+  // 상단 고정 헤더
+  var html =
+    '<div class="shelter-count-header">' +
+      '무더위쉼터 <span class="count">' +
+      shelterCount.toLocaleString() +
+      '개소</span>' +
+    '</div>';
+
   if (rows.length === 0) {
-    list.innerHTML = '<div class="item"><div class="name">무더위쉼터 데이터 없음</div></div>';
+    html +=
+      '<div class="item">' +
+        '<div class="name">무더위쉼터 데이터 없음</div>' +
+      '</div>';
+
+    list.innerHTML = html;
     return;
   }
 
   var visible = rows.slice(0, 30);
-  var html = "";
+
   for (var i = 0; i < visible.length; i++) {
     var s = visible[i];
-    var distStr = (s.dist !== undefined && Number.isFinite(s.dist)) ? s.dist.toFixed(1) + "km" : "위치 정보 없음";
-    html += '<div class="item">' +
-      '<div class="name">' + s.name + '</div>' +
-      '<div class="addr">' + (s.address || "주소 없음") + '</div>' +
-      '<div class="meta"><span>무더위쉼터</span><span class="dist">' + distStr + '</span></div>' +
+
+    var distStr =
+      (s.dist !== undefined && Number.isFinite(s.dist))
+        ? s.dist.toFixed(1) + "km"
+        : "위치 정보 없음";
+
+    html +=
+      '<div class="item">' +
+        '<div class="name">' + s.name + '</div>' +
+        '<div class="addr">' +
+          (s.address || "주소 없음") +
+        '</div>' +
+        '<div class="meta">' +
+          '<span>무더위쉼터</span>' +
+          '<span class="dist">' + distStr + '</span>' +
+        '</div>' +
       '</div>';
   }
+
   list.innerHTML = html;
 }
 
@@ -1987,22 +2048,44 @@ function renderEmergencyTable() {
 
 async function loadResourceData() {
   try {
-    var response = await fetch("/api/resources", { method: "GET", cache: "no-store" });
-    if (!response.ok) throw new Error("자원 API HTTP 오류 " + response.status);
+    var response = await fetch("/api/resources", {
+      method: "GET",
+      cache: "no-store"
+    });
+
+    if (!response.ok) {
+      throw new Error("자원 API HTTP 오류 " + response.status);
+    }
+
     var json = await response.json();
 
     resourceData = {
       hospital: Array.isArray(json.hospital) ? json.hospital : [],
       healthCenter: Array.isArray(json.healthCenter) ? json.healthCenter : [],
       shelter: Array.isArray(json.shelter) ? json.shelter : [],
-      shelterTotalDisplay: json.shelterTotalDisplay || 781
+      shelterCount: Number(json.shelterCount) || 0
     };
+
+    // 무더위쉼터 개수 표시
+    var shelterCountElement = document.getElementById("count-shelter");
+
+    if (shelterCountElement) {
+      shelterCountElement.textContent =
+        resourceData.shelterCount.toLocaleString() + "개소";
+    }
 
     renderShelterMap();
     renderShelterListFromApi();
     renderEmergencyTable();
+
   } catch (error) {
     console.error("자원 데이터 로드 오류:", error);
+
+    var shelterCountElement = document.getElementById("count-shelter");
+
+    if (shelterCountElement) {
+      shelterCountElement.textContent = "-";
+    }
   }
 }
 
