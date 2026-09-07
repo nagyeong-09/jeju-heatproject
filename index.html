@@ -462,7 +462,7 @@
     color: var(--text-tertiary);
   }
 
-  /* TAB 2 MAP */
+  /* TAB 2 MAP (위험도 히트맵 전용) */
   .map-layout {
     display: flex;
     border: 1px solid var(--border);
@@ -763,48 +763,6 @@
     color: var(--text-primary);
   }
 
-  .patient-box {
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 16px 18px;
-    margin-bottom: 16px;
-    background: var(--bg-alt);
-  }
-
-  .patient-box .step-label {
-    font-size: 12px;
-    color: var(--text-secondary);
-    margin-bottom: 10px;
-  }
-
-  .patient-select-btn {
-    width: 100%;
-    border: 1px dashed var(--border);
-    border-radius: 4px;
-    background: var(--bg);
-    padding: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    cursor: pointer;
-    color: var(--text-tertiary);
-    font-size: 13px;
-    font-weight: 600;
-  }
-
-  .patient-select-btn.selected {
-    color: var(--text-primary);
-  }
-
-  #hospital-result {
-    display: none;
-  }
-
-  #hospital-result.show {
-    display: block;
-  }
-
   /* TAB 4 */
   .analysis-region-tabs {
     display: flex;
@@ -969,7 +927,7 @@
     line-height: 1.7;
   }
 
-  #resource-map {
+  #risk-map {
     width: 100%;
     height: 480px;
     min-height: 360px;
@@ -980,41 +938,6 @@
     position: relative;
     width: 100%;
     height: 100%;
-  }
-
-  .resource-filter {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    z-index: 1000;
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    max-width: calc(100% - 28px);
-  }
-
-  .resource-filter button {
-    border: 1px solid var(--border);
-    background: #fff;
-    color: var(--text-secondary);
-    border-radius: 4px;
-    padding: 6px 9px;
-    font-size: 11px;
-    cursor: pointer;
-  }
-
-  .resource-filter button.active {
-    color: var(--text-primary);
-    border-color: var(--text-primary);
-    font-weight: 700;
-  }
-
-  .resource-marker {
-    width: 12px;
-    height: 12px;
-    border-radius: 999px;
-    border: 2px solid #fff;
-    box-shadow: 0 0 0 1px rgba(17,24,39,.35);
   }
 
   #shelter-resource-map {
@@ -1144,7 +1067,7 @@
       </div>
     </section>
 
-    <!-- TAB 2 — 위험지도 -->
+    <!-- TAB 2 — 위험지도 (위험도 히트맵 전용) -->
     <section class="tab-panel" id="tab-map">
       <div class="panel-title-row">
         <div>
@@ -1152,7 +1075,7 @@
           <p>
             위험의 공간적 분포를 확인하는 화면입니다.
             실제 데이터가 없는 지역의 위험도는 임의로 생성하지 않으며,
-            확보된 관측 단위(AWS) 기준으로 표시합니다.
+            확보된 관측 단위(AWS) 기준 공간 위험도 히트맵으로 표시합니다.
           </p>
         </div>
       </div>
@@ -1160,13 +1083,7 @@
       <div class="map-layout">
         <div class="map-area">
           <div class="resource-map-wrap">
-            <div id="resource-map"></div>
-            <div class="resource-filter" id="resource-filter">
-              <button type="button" data-resource-filter="all" class="active">전체</button>
-              <button type="button" data-resource-filter="hospital">병원</button>
-              <button type="button" data-resource-filter="healthCenter">보건소</button>
-              <button type="button" data-resource-filter="shelter">무더위쉼터</button>
-            </div>
+            <div id="risk-map"></div>
           </div>
           <div class="map-legend" id="map-legend"></div>
           <div class="station-selectors" id="station-selectors"></div>
@@ -1381,6 +1298,22 @@ var REGION_INFO = {
   west: { name: "고산", station: "고산" }
 };
 
+// 제주 4개 권역 다각형 범위 (위험도 히트맵 구현용)
+var REGION_BOUNDS = {
+  north: [
+    [33.58, 126.40], [33.55, 126.70], [33.40, 126.65], [33.42, 126.35]
+  ],
+  south: [
+    [33.32, 126.30], [33.32, 126.80], [33.20, 126.85], [33.20, 126.25]
+  ],
+  east: [
+    [33.55, 126.70], [33.50, 126.95], [33.32, 126.95], [33.32, 126.70]
+  ],
+  west: [
+    [33.42, 126.35], [33.40, 126.35], [33.25, 126.15], [33.38, 126.15]
+  ]
+};
+
 var weatherData = [];
 var historyData = { north: [], south: [], east: [], west: [] };
 var requestedAt = null;
@@ -1396,11 +1329,10 @@ var resourceData = {
   shelterTotalDisplay: 781
 };
 
-var resourceMap = null;
+var riskMap = null;
 var shelterMap = null;
-var resourceLayers = { hospital: null, healthCenter: null, shelter: null, user: null };
+var riskLayers = {}; // 히트맵 레이어 전용
 var shelterMarkers = null;
-var selectedResourceFilter = "all";
 
 var TABS = [
   { id: "tab-dashboard", label: "상황판", core: true },
@@ -1480,10 +1412,9 @@ function findRegion(id) {
   return null;
 }
 
-// Haversine 거리 계산 (클라이언트 단독 실행)
 function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
   if (![lat1, lon1, lat2, lon2].every(Number.isFinite)) return null;
-  var R = 6371; // km
+  var R = 6371;
   var dLat = ((lat2 - lat1) * Math.PI) / 180;
   var dLon = ((lon2 - lon1) * Math.PI) / 180;
   var a =
@@ -1631,16 +1562,17 @@ function switchTab(tabId) {
 
   window.scrollTo(0, 0);
 
-  if (tabId === "tab-map" || tabId === "tab-response") {
+  if (tabId === "tab-map") {
     requestAnimationFrame(function () {
-      if (resourceMap) resourceMap.invalidateSize();
-      if (shelterMap) shelterMap.invalidateSize();
-      renderResourceMarkers();
+      ensureRiskMap();
+      renderRiskHeatmap();
+    });
+  } else if (tabId === "tab-response") {
+    requestAnimationFrame(function () {
+      ensureShelterMap();
       renderShelterMap();
     });
-  }
-
-  if (tabId === "tab-analysis") {
+  } else if (tabId === "tab-analysis") {
     requestAnimationFrame(function () {
       renderAnalysisRegionTabs();
       renderTimeSeries();
@@ -1707,7 +1639,55 @@ function renderDashboard() {
   body.innerHTML = rows;
 }
 
-function renderMap() {
+// --------------------------------------------------
+// 위험지도 (위험도 히트맵 전용 구현)
+// --------------------------------------------------
+
+function ensureRiskMap() {
+  var el = document.getElementById("risk-map");
+  if (!el || typeof L === "undefined") return;
+  if (!riskMap) {
+    riskMap = L.map(el).setView([33.38, 126.55], 10);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(riskMap);
+  }
+  setTimeout(function () { riskMap.invalidateSize(); }, 50);
+}
+
+function renderRiskHeatmap() {
+  ensureRiskMap();
+  if (!riskMap) return;
+
+  REGION_ORDER.forEach(function (key) {
+    if (riskLayers[key]) {
+      riskMap.removeLayer(riskLayers[key]);
+    }
+
+    var region = findRegion(key);
+    var wbgt = region ? region.wbgt : null;
+    var risk = classifyRisk(wbgt);
+
+    // 데이터가 없거나 null이면 투명/자료부족 색상으로 칠함 (임의 추정 금지)
+    var fillColor = risk.key === "unknown" ? "#9CA3AF" : risk.color;
+    var fillOpacity = risk.key === "unknown" ? 0.2 : 0.45;
+
+    var polygon = L.polygon(REGION_BOUNDS[key], {
+      color: fillColor,
+      weight: 2,
+      fillColor: fillColor,
+      fillOpacity: fillOpacity
+    }).addTo(riskMap);
+
+    polygon.on("click", function () {
+      selectedRegionId = key;
+      renderMapSelectors();
+      renderDetailPanel();
+    });
+
+    riskLayers[key] = polygon;
+  });
+}
+
+function renderMapSelectors() {
   var legend = document.getElementById("map-legend");
   var legendHtml = "";
   for (var i = 0; i < RISK_LEVELS.length; i++) {
@@ -1733,7 +1713,7 @@ function renderMap() {
   for (var m = 0; m < buttons.length; m++) {
     buttons[m].addEventListener("click", function (e) {
       selectedRegionId = e.currentTarget.getAttribute("data-id");
-      renderMap();
+      renderMapSelectors();
       renderDetailPanel();
     });
   }
@@ -1817,22 +1797,19 @@ function setupLocationPrompt() {
 
     navigator.geolocation.getCurrentPosition(
       function (pos) {
-        // 브라우저 내부에서만 보관하며 서버에 전송하지 않음
+        // 위치 정보를 클라이언트 내부에서만 활용
         userCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
         document.getElementById("location-prompt").style.display = "none";
 
-        if (resourceMap) {
-          if (resourceLayers.user) resourceLayers.user.clearLayers();
-          else resourceLayers.user = L.layerGroup().addTo(resourceMap);
-
+        if (shelterMap) {
           L.marker([userCoords.lat, userCoords.lon], {
             icon: L.divIcon({
               className: "",
               html: '<div style="width:14px;height:14px;background:#2563EB;border:2px solid #fff;border-radius:999px;"></div>',
               iconSize: [14, 14]
             })
-          }).bindPopup("현재 사용자 위치").addTo(resourceLayers.user);
-          resourceMap.setView([userCoords.lat, userCoords.lon], 12);
+          }).bindPopup("현재 위치").addTo(shelterMap);
+          shelterMap.setView([userCoords.lat, userCoords.lon], 12);
         }
 
         renderShelterListFromApi();
@@ -1846,31 +1823,14 @@ function setupLocationPrompt() {
   });
 }
 
-function resourceMarkerColor(type) {
-  if (type === "hospital") return "#D32F2F";
-  if (type === "healthCenter") return "#1565C0";
-  return "#F9A825";
-}
-
 function createResourceIcon(type) {
+  var color = type === "shelter" ? "#F9A825" : "#1565C0";
   return L.divIcon({
     className: "",
-    html: '<div class="resource-marker" style="background:' + resourceMarkerColor(type) + ';"></div>',
+    html: '<div style="width:12px;height:12px;border-radius:999px;background:' + color + ';border:2px solid #fff;"></div>',
     iconSize: [12, 12],
     iconAnchor: [6, 6]
   });
-}
-
-function ensureResourceMap() {
-  var el = document.getElementById("resource-map");
-  if (!el || typeof L === "undefined") return;
-  if (!resourceMap) {
-    resourceMap = L.map(el).setView([33.38, 126.55], 10);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(resourceMap);
-    resourceLayers.hospital = L.layerGroup().addTo(resourceMap);
-    resourceLayers.healthCenter = L.layerGroup().addTo(resourceMap);
-    resourceLayers.shelter = L.layerGroup().addTo(resourceMap);
-  }
 }
 
 function ensureShelterMap() {
@@ -1881,31 +1841,7 @@ function ensureShelterMap() {
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(shelterMap);
     shelterMarkers = L.layerGroup().addTo(shelterMap);
   }
-}
-
-function renderResourceMarkers() {
-  ensureResourceMap();
-  if (!resourceMap) return;
-
-  var types = ["hospital", "healthCenter", "shelter"];
-  for (var i = 0; i < types.length; i++) {
-    var type = types[i];
-    var layer = resourceLayers[type];
-    if (!layer) continue;
-    layer.clearLayers();
-
-    if (selectedResourceFilter !== "all" && selectedResourceFilter !== type) continue;
-
-    var rows = resourceData[type] || [];
-    for (var j = 0; j < rows.length; j++) {
-      var item = rows[j];
-      if (Number.isFinite(item.lat) && Number.isFinite(item.lon)) {
-        L.marker([item.lat, item.lon], { icon: createResourceIcon(type) })
-          .bindPopup("<b>" + item.name + "</b><br>" + (item.address || ""))
-          .addTo(layer);
-      }
-    }
-  }
+  setTimeout(function () { shelterMap.invalidateSize(); }, 50);
 }
 
 function renderShelterMap() {
@@ -1950,7 +1886,7 @@ function renderShelterListFromApi() {
   var html = "";
   for (var i = 0; i < visible.length; i++) {
     var s = visible[i];
-    var distStr = (s.dist !== undefined && Number.isFinite(s.dist)) ? s.dist.toFixed(1) + "km" : "";
+    var distStr = (s.dist !== undefined && Number.isFinite(s.dist)) ? s.dist.toFixed(1) + "km" : "위치 정보 없음";
     html += '<div class="item">' +
       '<div class="name">' + s.name + '</div>' +
       '<div class="addr">' + (s.address || "주소 없음") + '</div>' +
@@ -1988,7 +1924,7 @@ function renderEmergencyTable() {
   var html = "";
   for (var i = 0; i < visible.length; i++) {
     var item = visible[i];
-    var distStr = (item.dist !== undefined && Number.isFinite(item.dist)) ? item.dist.toFixed(1) + "km" : "-";
+    var distStr = (item.dist !== undefined && Number.isFinite(item.dist)) ? item.dist.toFixed(1) + "km" : "위치 정보 없음";
     html += '<tr>' +
       '<td>' + item.cat + '</td>' +
       '<td class="strong">' + item.name + '</td>' +
@@ -1997,17 +1933,6 @@ function renderEmergencyTable() {
       '</tr>';
   }
   tbody.innerHTML = html;
-}
-
-function setupResourceFilter() {
-  var buttons = document.querySelectorAll("#resource-filter button");
-  for (var i = 0; i < buttons.length; i++) {
-    buttons[i].addEventListener("click", function (e) {
-      selectedResourceFilter = e.currentTarget.getAttribute("data-resource-filter");
-      for (var j = 0; j < buttons.length; j++) buttons[j].classList.toggle("active", buttons[j] === e.currentTarget);
-      renderResourceMarkers();
-    });
-  }
 }
 
 async function loadResourceData() {
@@ -2023,7 +1948,6 @@ async function loadResourceData() {
       shelterTotalDisplay: json.shelterTotalDisplay || 781
     };
 
-    renderResourceMarkers();
     renderShelterMap();
     renderShelterListFromApi();
     renderEmergencyTable();
@@ -2137,7 +2061,8 @@ function renderTimeSeries() {
 
 function renderAll() {
   renderDashboard();
-  renderMap();
+  renderRiskHeatmap();
+  renderMapSelectors();
   renderDetailPanel();
   renderResponseCounts();
   renderPriorityList();
@@ -2153,8 +2078,7 @@ window.addEventListener("resize", function () {
 
 renderTabNav();
 setupLocationPrompt();
-setupResourceFilter();
-ensureResourceMap();
+ensureRiskMap();
 ensureShelterMap();
 renderAnalysisRegionTabs();
 

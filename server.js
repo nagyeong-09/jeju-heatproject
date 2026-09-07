@@ -5,12 +5,12 @@ const express = require("express");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// API KEY 개별 할당
+// API KEY 개별 할당 (기존 환경변수 이름 유지)
 const KMA_API_KEY = process.env.KMA_API_KEY;
 const SHELTER_API_KEY = process.env.SHELTER_API_KEY;
 const HOSPITAL_API_KEY = process.env.HOSPITAL_API_KEY;
 const HEALTH_CENTER_API_KEY = process.env.HEALTH_CENTER_API_KEY;
-const TRAFFIC_API_KEY= process.env.TRAFFIC_API_KEY;
+const TRAFFIC_API_KEY = process.env.TRAFFIC_API_KEY;
 
 if (!KMA_API_KEY) {
   console.error("❌ KMA_API_KEY가 환경변수에 없습니다.");
@@ -24,6 +24,7 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 const KMA_BASE_URL = "https://apihub.kma.go.kr/api/typ01/url/kma_sfctm2.php";
+const SAFETY_BASE_URL = "https://www.safetydata.go.kr";
 
 // 제주 4개 관측지점 (AWS 데이터 연동 유지)
 const STATIONS = {
@@ -166,7 +167,7 @@ function parseKmaRows(text) {
     const humidity = toNumber(parts[13]); // HM = 상대습도 (parts[13])
     const solar = toNumber(parts[34]);   // SI = 일사량 (parts[34])
 
-    // 성산 station 188의 SI 값 디버깅 로그 (필수 로그 조건)
+    // 성산 station 188의 SI 값 디버깅 로그 유지
     if (stationId === 188) {
       console.log(`[디버그] 성산(188) SI: ${solar}, TA: ${temp}, HM: ${humidity}, WS: ${wind}`);
     }
@@ -221,7 +222,6 @@ function calculateWetBulb(temp, rh) {
 // --------------------------------------------------
 
 function calculateWBGT(temp, rh, wind, solar) {
-  // SI 결측 시 null 처리 (0으로 강제 대체 금지)
   if (
     temp === null ||
     rh === null ||
@@ -242,7 +242,6 @@ function calculateWBGT(temp, rh, wind, solar) {
   const tw = calculateWetBulb(temp, rh);
   if (tw === null) return null;
 
-  // Tg = 0.926*Ta - 0.028*RH - 0.783*WS + 10.441*sqrt(SI) + 2.784
   const tg =
     0.926 * temp -
     0.028 * rh -
@@ -250,7 +249,6 @@ function calculateWBGT(temp, rh, wind, solar) {
     10.441 * Math.sqrt(solar) +
     2.784;
 
-  // WBGT = 0.7*Tw + 0.2*Tg + 0.1*Ta
   const wbgt = 0.7 * tw + 0.2 * tg + 0.1 * temp;
 
   return Number(wbgt.toFixed(1));
@@ -507,7 +505,7 @@ app.get("/api/resources", async (req, res) => {
 
   res.json({
     success: true,
-    shelterTotalDisplay: 781, // 요구사항: 781개 표기 유지
+    shelterTotalDisplay: 781,
     hospital,
     healthCenter,
     shelter,
