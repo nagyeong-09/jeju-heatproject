@@ -7,9 +7,10 @@ const PORT = process.env.PORT || 3000;
 
 // API KEY 개별 할당
 const KMA_API_KEY = process.env.KMA_API_KEY;
-const SHELTER_API_KEY = process.env.shelter_API_KEY;
-const HOSPITAL_API_KEY = process.env.hospital_API_KEY;
-const HEALTH_CENTER_API_KEY = process.env.health_center_API_KEY;
+const SHELTER_API_KEY = process.env.SHELTER_API_KEY;
+const HOSPITAL_API_KEY = process.env.HOSPITAL_API_KEY;
+const HEALTH_CENTER_API_KEY = process.env.HEALTH_CENTER_API_KEY;
+const TRAFFIC_API_KEY= process.env.TRAFFIC_API_KEY;
 
 if (!KMA_API_KEY) {
   console.error("❌ KMA_API_KEY가 환경변수에 없습니다.");
