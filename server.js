@@ -16,6 +16,11 @@ if (!KMA_API_KEY) {
   console.error("❌ KMA_API_KEY가 환경변수에 없습니다.");
 }
 
+console.log("KMA:", !!process.env.KMA_API_KEY);
+console.log("HOSPITAL:", !!process.env.HOSPITAL_API_KEY);
+console.log("HEALTH:", !!process.env.HEALTH_CENTER_API_KEY);
+console.log("SHELTER:", !!process.env.SHELTER_API_KEY);
+
 // --------------------------------------------------
 // 기본 설정
 // --------------------------------------------------
@@ -579,6 +584,8 @@ async function fetchSafetyApiData(
       const response = await fetch(url);
       const rawText = await response.text();
 
+      console.log(`[안전데이터 원본 응답] ${endpoint}:`, rawText.slice(0, 1000));
+
       if (!response.ok) {
         throw new Error(
           `HTTP ${response.status}: ${rawText.slice(
@@ -607,25 +614,44 @@ async function fetchSafetyApiData(
         json?.header;
 
       const returnAuthMsg =
-        header?.returnAuthMsg;
+       header?.returnAuthMsg;
 
       const resultCode =
-        header?.returnReasonCode ||
-        header?.resultCode;
+       header?.returnReasonCode ||
+       header?.resultCode;
+
+      const resultMsg =
+       header?.resultMsg || "";
+
+      const normalizedCode =
+       String(resultCode || "").trim();
+
+      const normalizedMsg =
+       String(resultMsg || "").trim();
+
+// 안전데이터 API 정상 응답은 resultCode "00" +
+// resultMsg "NORMAL SERVICE" 형태일 수 있음.
+// 인증/접근 오류일 때만 오류로 처리.
+      const isNormalResponse =
+        normalizedCode === "00" ||
+        normalizedCode === "0" ||
+        normalizedMsg === "NORMAL SERVICE";
 
       if (
-        returnAuthMsg ||
+       !isNormalResponse &&
         (
-          resultCode &&
-          String(resultCode) !== "0"
+         returnAuthMsg ||
+         normalizedCode
         )
       ) {
-        throw new Error(
-          `안전데이터 API 오류 ${
+       throw new Error(
+         `안전데이터 API 오류 ${
             resultCode || ""
           } ${
-            returnAuthMsg || ""
-          }`.trim()
+           returnAuthMsg ||
+           resultMsg ||
+           ""
+         }`.trim()
         );
       }
 
@@ -746,26 +772,31 @@ function mapMedicalResource(item) {
 }
 
 function mapShelterResource(item) {
-  const { lat, lon } =
-    extractLatLon(item);
+  const { lat, lon } = extractLatLon(item);
 
   return {
     type: "shelter",
 
+    // 무더위쉼터 API 실제 필드
     name:
+      item.RSTR_NM ||
       item.REARE_NM ||
       item.SHELTER_NM ||
-      item.FCLT_NM ||
+      item.FCLTY_NM ||
       item.NAME ||
       "명칭 없음",
 
+    // 도로명 주소 우선, 없으면 상세주소
     address:
+      item.RN_DTL_ADRES ||
+      item.DTL_ADRES ||
       item.RONA_DADDR ||
       item.REFINE_ROADNM_ADDR ||
       item.ADDR ||
       item.SHELTER_ADDR ||
       "",
 
+    // 해당 API에는 전화번호가 별도 필드로 없을 수 있음
     phone:
       item.TEL_NO ||
       item.TEL ||
@@ -775,8 +806,12 @@ function mapShelterResource(item) {
     lat,
     lon,
 
+    // 시설 종류
     shelterType:
-      item.SHLT_SE_NM || "",
+      item.FCLTY_SCLAS ||
+      item.FCLTY_TY ||
+      item.SHLT_SE_NM ||
+      ""
   };
 }
 
@@ -855,50 +890,75 @@ app.get(
       errors: [],
     };
 
-    // 병원 + 보건소
-    // 공식 병의원 POI API 하나에서 함께 받음
+    // 병원
     try {
-      const medicalRaw =
+      const hospitalRaw =
         await fetchSafetyApiData(
-          "/V2/api/DSSP-IF-00128",
-          HOSPITAL_API_KEY ||
-            HEALTH_CENTER_API_KEY
+          "/V2/api/DSSP-IF-10840",
+          HOSPITAL_API_KEY
         );
 
-      const medicalJeju =
-        medicalRaw
+      response.hospital =
+        hospitalRaw
           .map(mapMedicalResource)
           .filter((item) =>
             isJejuCoordinate(
               item.lat,
               item.lon
             )
-          );
-
-      response.hospital =
-        medicalJeju.filter(
-          (item) =>
-            item.type === "hospital"
-        );
-
-      response.healthCenter =
-        medicalJeju.filter(
-          (item) =>
-            item.type ===
-            "healthCenter"
-        );
+          )
+          .map((item) => ({
+            ...item,
+            type: "hospital"
+          }));
 
       console.log(
-        `🏥 병의원 POI 원본: ${medicalRaw.length}, 제주 병원: ${response.hospital.length}, 제주 보건소: ${response.healthCenter.length}`
+        `🏥 병원 원본: ${hospitalRaw.length}, 제주 병원: ${response.hospital.length}`
       );
     } catch (error) {
       console.error(
-        "❌ 병원/보건소 API 오류:",
+        "❌ 병원 API 오류:",
         error.message
       );
 
       response.errors.push(
-        `병원/보건소: ${error.message}`
+        `병원: ${error.message}`
+      );
+    }
+
+    // 보건소
+    try {
+      const healthCenterRaw =
+        await fetchSafetyApiData(
+          "/V2/api/DSSP-IF-20535",
+          HEALTH_CENTER_API_KEY
+        );
+
+      response.healthCenter =
+        healthCenterRaw
+          .map(mapMedicalResource)
+          .filter((item) =>
+            isJejuCoordinate(
+              item.lat,
+              item.lon
+            )
+          )
+          .map((item) => ({
+            ...item,
+            type: "healthCenter"
+          }));
+
+      console.log(
+        `🏥 보건소 원본: ${healthCenterRaw.length}, 제주 보건소: ${response.healthCenter.length}`
+      );
+    } catch (error) {
+      console.error(
+        "❌ 보건소 API 오류:",
+        error.message
+      );
+
+      response.errors.push(
+        `보건소: ${error.message}`
       );
     }
 
@@ -909,6 +969,8 @@ app.get(
           "/V2/api/DSSP-IF-10942",
           SHELTER_API_KEY
         );
+
+        console.log("🏠 쉼터 실제 필드:", shelterRaw[0]);
 
       response.shelter =
         shelterRaw
